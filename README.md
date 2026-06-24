@@ -8,6 +8,41 @@ siti e una batteria di **filtri** per scegliere esattamente cosa scaricare.
 > 1.0.0** — libero per qualsiasi uso **non commerciale**; per l'uso commerciale
 > serve una licenza a pagamento. Vedi [Licenza](#licenza).
 
+## Demo
+
+**Guida interattiva** (`scrap --help`) — una TUI a schede, navigabile e scrollabile:
+
+```text
+┌─ scrap — guida ──────────────────────────────────────────────────────────────┐
+│  Info  Download  Crawl  Filtri  Auth  Generali  Esempi                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ NOME                                                                         │
+│    scrap — il coltellino svizzero del download                               │
+│                                                                              │
+│ SINTASSI                                                                     │
+│    scrap [opzioni] URL [URL...]                                              │
+│    scrap [opzioni] -i lista.txt                                              │
+│                                                                              │
+│ DESCRIZIONE                                                                  │
+│    scrap è uno strumento da riga di comando che combina lo scaricamento      │
+│    multi-segmento (più connessioni parallele per ogni file), il crawling     │
+│    ricorsivo dei siti e una ricca batteria di filtri per selezionare con     │
+│    precisione cosa scaricare.                                                │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ ←/→ schede · ↑/↓ scorri · PgUp/PgDn · g/G · q esci             righe 1-15/15 │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Download in corso** — una barra per file, con i segmenti che si riempiono in parallelo:
+
+```text
+ ⬇ medium.dat          ▕██████████▎░░░░░▏  64%  503K/781K  17.0K/s  16s
+ ⬇ big.bin             ▕████████▌░░░░░░░▏  53%  2.7M/5.0M  508K/s  5s
+    └ seg ▰▰▱▱ ▰▰▱▱ ▰▰▰▰ ▰▰▱▱ ▰▰▱▱ ▰▰▱▱  (6 connessioni)
+────────────────────────────────────────────────────────────────────────
+ 2 attivi · 0 fatti · 3.2M · 525K/s
+```
+
 ## Cosa fa
 
 - **Multi-segmentazione**: spezza un file in N range HTTP scaricati in parallelo,

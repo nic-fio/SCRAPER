@@ -6,8 +6,6 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
-	"syscall"
-	"unsafe"
 )
 
 // codici ANSI
@@ -243,28 +241,13 @@ func isTTY(f *os.File) bool {
 	return fi.Mode()&os.ModeCharDevice != 0
 }
 
-type winsize struct{ Row, Col, Xpix, Ypix uint16 }
-
 // termWidth rileva la larghezza del terminale (colonne), con fallback a 80.
 func termWidth() int {
-	for _, f := range []*os.File{os.Stderr, os.Stdout, os.Stdin} {
-		ws := &winsize{}
-		_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, f.Fd(),
-			uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(ws)))
-		if errno == 0 && ws.Col > 0 {
-			return int(ws.Col)
-		}
+	w, _ := termSize()
+	if w <= 0 {
+		return 80
 	}
-	if tty, err := os.Open("/dev/tty"); err == nil {
-		defer tty.Close()
-		ws := &winsize{}
-		_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, tty.Fd(),
-			uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(ws)))
-		if errno == 0 && ws.Col > 0 {
-			return int(ws.Col)
-		}
-	}
-	return 80
+	return w
 }
 
 // displayHelp mostra la guida. In un terminale avvia la TUI interattiva a

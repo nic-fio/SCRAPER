@@ -4,9 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"syscall"
 	"unicode/utf8"
-	"unsafe"
 )
 
 // styled è una stringa eventualmente colorata con la sua larghezza visibile.
@@ -98,8 +96,6 @@ func buildTabs() []tabDef {
 // ---- la TUI ----
 
 type tui struct {
-	fd     int
-	old    *syscall.Termios
 	w, h   int
 	color  bool
 	tab    int
@@ -128,28 +124,27 @@ func runTUI() error {
 	if w < 44 || h < 10 {
 		return errf2("terminale troppo piccolo")
 	}
-	old, err := getTermios(0)
+	old, err := enterRaw(0)
 	if err != nil {
 		return err
 	}
-	t := &tui{fd: 0, old: old, w: w, h: h, color: os.Getenv("NO_COLOR") == "", tabs: buildTabs()}
-	t.scroll = make([]int, len(t.tabs))
+	defer restoreTerm(0, old)
 
-	if err := t.enterRaw(); err != nil {
-		return err
-	}
-	defer t.restore()
+	t := &tui{w: w, h: h, color: os.Getenv("NO_COLOR") == "", tabs: buildTabs()}
+	t.scroll = make([]int, len(t.tabs))
 
 	out := os.Stdout
 	out.WriteString("\033[?1049h\033[?25l") // schermo alternativo, nascondi cursore
 	defer out.WriteString("\033[?25h\033[?1049l")
 
 	winch := make(chan os.Signal, 1)
-	signal.Notify(winch, syscall.SIGWINCH)
-	defer signal.Stop(winch)
+	if len(winchSignals) > 0 {
+		signal.Notify(winch, winchSignals...)
+		defer signal.Stop(winch)
+	}
 
 	death := make(chan os.Signal, 1)
-	signal.Notify(death, syscall.SIGTERM, syscall.SIGHUP)
+	signal.Notify(death, deathSignals...)
 	defer signal.Stop(death)
 
 	keyCh := make(chan [2]int, 8)
@@ -428,50 +423,5 @@ func itoa(n int) string {
 	return string(b[i:])
 }
 
-// ---- termios ----
-
-func getTermios(fd int) (*syscall.Termios, error) {
-	t := &syscall.Termios{}
-	_, _, e := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd),
-		uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(t)))
-	if e != 0 {
-		return nil, e
-	}
-	return t, nil
-}
-
-func setTermios(fd int, t *syscall.Termios) error {
-	_, _, e := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd),
-		uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(t)))
-	if e != 0 {
-		return e
-	}
-	return nil
-}
-
-func (t *tui) enterRaw() error {
-	raw := *t.old
-	raw.Lflag &^= syscall.ECHO | syscall.ICANON | syscall.ISIG | syscall.IEXTEN
-	raw.Iflag &^= syscall.IXON | syscall.ICRNL | syscall.BRKINT | syscall.INPCK | syscall.ISTRIP
-	raw.Cc[syscall.VMIN] = 1
-	raw.Cc[syscall.VTIME] = 0
-	return setTermios(t.fd, &raw)
-}
-
-func (t *tui) restore() {
-	if t.old != nil {
-		setTermios(t.fd, t.old)
-	}
-}
-
-func termSize() (int, int) {
-	for _, f := range []*os.File{os.Stdout, os.Stderr} {
-		ws := &winsize{}
-		_, _, e := syscall.Syscall(syscall.SYS_IOCTL, f.Fd(),
-			uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(ws)))
-		if e == 0 && ws.Col > 0 {
-			return int(ws.Col), int(ws.Row)
-		}
-	}
-	return 80, 24
-}
+// Le primitive di basso livello (termios, ioctl, segnali) sono definite nei
+// file term_linux.go / term_other.go in base alla piattaforma.
