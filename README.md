@@ -1,5 +1,9 @@
 # scrap
 
+[![release](https://img.shields.io/github/v/release/nicfio/Scraper)](https://github.com/nicfio/Scraper/releases/latest)
+[![license: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue)](LICENSE)
+![platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20windows-lightgrey)
+
 **Il coltellino svizzero del download.** Un singolo binario statico (~6 MB, zero
 dipendenze) che combina **download multi-segmento**, **crawling ricorsivo** dei
 siti e una batteria di **filtri** per scegliere esattamente cosa scaricare.
@@ -7,6 +11,22 @@ siti e una batteria di **filtri** per scegliere esattamente cosa scaricare.
 > ⚖️ **Licenza:** software *source-available* sotto **PolyForm Noncommercial
 > 1.0.0** — libero per qualsiasi uso **non commerciale**; per l'uso commerciale
 > serve una licenza a pagamento. Vedi [Licenza](#licenza).
+
+## Download
+
+Binari precompilati, nessun Go richiesto → **[Releases](https://github.com/nicfio/Scraper/releases/latest)**
+
+| Sistema | Architettura | |
+|---|---|---|
+| **Linux** | x86-64 · ARM64 | [scrap-linux-amd64](https://github.com/nicfio/Scraper/releases/latest/download/scrap-linux-amd64) · [scrap-linux-arm64](https://github.com/nicfio/Scraper/releases/latest/download/scrap-linux-arm64) |
+| **macOS** | Intel · Apple Silicon | [scrap-darwin-amd64](https://github.com/nicfio/Scraper/releases/latest/download/scrap-darwin-amd64) · [scrap-darwin-arm64](https://github.com/nicfio/Scraper/releases/latest/download/scrap-darwin-arm64) |
+| **Windows** | x86-64 | [scrap-windows-amd64.exe](https://github.com/nicfio/Scraper/releases/latest/download/scrap-windows-amd64.exe) |
+
+```sh
+chmod +x scrap-linux-amd64 && ./scrap-linux-amd64 --help
+```
+
+Verifica l'integrità con [`SHA256SUMS`](https://github.com/nicfio/Scraper/releases/latest/download/SHA256SUMS): `sha256sum -c SHA256SUMS`.
 
 ## Demo
 
