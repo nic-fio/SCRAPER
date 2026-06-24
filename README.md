@@ -1,0 +1,105 @@
+# scrap
+
+**Il coltellino svizzero del download.** Un singolo binario statico (~6 MB, zero
+dipendenze) che combina **download multi-segmento**, **crawling ricorsivo** dei
+siti e una batteria di **filtri** per scegliere esattamente cosa scaricare.
+
+> ⚖️ **Licenza:** software *source-available* sotto **PolyForm Noncommercial
+> 1.0.0** — libero per qualsiasi uso **non commerciale**; per l'uso commerciale
+> serve una licenza a pagamento. Vedi [Licenza](#licenza).
+
+## Cosa fa
+
+- **Multi-segmentazione**: spezza un file in N range HTTP scaricati in parallelo,
+  con resume, retry per-segmento e rate-limit globale.
+- **Crawling ricorsivo**: segue i link (`a`, `img`, `link`, `script`, `srcset`,
+  CSS `url()`), ricostruisce l'albero delle cartelle, rispetta `robots.txt`,
+  opzionalmente converte i link per la navigazione offline.
+- **Filtri** (il coltellino): per estensione, regex sull'URL, dominio,
+  content-type, dimensione, profondità, quota totale e numero massimo di file.
+- **Output live**: una barra di avanzamento per ogni download attivo, con
+  percentuale, velocità ed ETA, e — per i file multi-segmento — una riga che
+  mostra i singoli segmenti riempirsi in parallelo. Fuori dal terminale (pipe,
+  log) stampa righe semplici.
+- **Autenticazione & cookie**: HTTP Basic/Digest, login via form (cattura il
+  cookie di sessione), token Bearer, header arbitrari, cookie manuali e
+  load/save in formato Netscape `cookies.txt`.
+
+## Build
+
+Richiede solo il toolchain Go (≥ 1.21):
+
+```sh
+cd scrap
+CGO_ENABLED=0 go build -ldflags "-s -w" -o scrap .
+```
+
+Il risultato è un eseguibile statico autocontenuto: copialo dove vuoi
+(`sudo install -m755 scrap /usr/local/bin/`).
+
+## Esempi
+
+```sh
+# Download multi-segmento (8 connessioni) con resume
+scrap -s 8 -c https://example.com/file.iso
+
+# Mirror completo di un sito, link offline
+scrap -m --convert-links https://sito.example/
+
+# Crawl solo immagini e PDF fino a 5 MB, max 200 file
+scrap -r -l 3 -A jpg,png,pdf --max-size 5M --max-files 200 https://sito/
+
+# Scarica un'intera lista, 6 file in parallelo, banda capata a 2 MB/s
+scrap -i urls.txt -j 6 --rate 2M -d ./downloads
+
+# Area riservata: login via form e riuso della sessione
+scrap --login-url https://sito/login --login-data 'user=foo&pass=bar' \
+      --save-cookies cj.txt -m https://sito/area/
+scrap --load-cookies cj.txt https://sito/area/altro
+
+# API con token Bearer
+scrap --bearer "$TOKEN" -o data.json https://api.sito/v1/export
+```
+
+## Guida interattiva
+
+`scrap --help` (o `-h`, o senza argomenti) apre una **TUI a schede** a tutto
+schermo, navigabile da tastiera:
+
+- `←/→` (o `Tab`, o i tasti `1`–`9`) cambia scheda
+- `↑/↓`, `PgUp/PgDn`, `g/G` scorrono il contenuto
+- `q` o `Esc` esce
+
+È scritta interamente con la libreria standard (raw mode via termios, schermo
+alternativo, gestione del ridimensionamento). Quando l'output non è un terminale
+(es. `scrap --help | less`) viene invece stampata una pagina di manuale testuale.
+
+## Note
+
+- In modalità ricorsiva ricostruisce l'albero `host/percorso`; di default resta
+  sull'host di partenza (`--span-hosts` per uscirne).
+- `-o` è il percorso esatto del file di output; per scegliere solo la cartella
+  usa `-d`.
+- `--convert-links` riscrive i link assoluti verso i file scaricati: è una
+  conversione di base, sufficiente per la maggior parte dei mirror.
+
+## Licenza
+
+Copyright © 2026 **Nicola Fiorillo**.
+
+`scrap` è rilasciato con licenza **[PolyForm Noncommercial 1.0.0](LICENSE)**, una
+licenza *source-available*:
+
+- ✅ **Libero** per ogni uso **non commerciale**: uso personale, studio, ricerca,
+  progetti hobbistici, enti no-profit, scuole, pubblica amministrazione.
+- 💼 **Uso commerciale**: richiede una **licenza commerciale a pagamento**.
+
+Per una licenza commerciale, scrivi a **Nicola Fiorillo — github.com/nic-fio**.
+
+> Nota: PolyForm Noncommercial *non* è una licenza open source secondo la
+> definizione OSI (che impone di consentire anche l'uso commerciale). Il codice
+> è pubblico e modificabile, ma l'uso commerciale è riservato.
+
+## Autore
+
+**Nicola Fiorillo** · github.com/nic-fio · [github.com/nicfio](https://github.com/nicfio)

@@ -1,0 +1,19 @@
+# Binario compilato
+/scrap
+
+# Artefatti di download
+*.part
+*.part.scrap
+
+# Cookie jar
+cookies.txt
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# File estranei / download di grandi dimensioni finiti qui per errore
+*.gguf
+*.gguf*
+*.bin
+*.iso
