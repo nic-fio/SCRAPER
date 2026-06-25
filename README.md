@@ -8,6 +8,12 @@
 dipendenze) che combina **download multi-segmento**, **crawling ricorsivo** dei
 siti e una batteria di **filtri** per scegliere esattamente cosa scaricare.
 
+> 🇬🇧 *The Swiss-army knife of downloading — a single zero-dependency static binary
+> that combines a **multi-connection download manager** (parallel HTTP ranges,
+> resume, rate-limit) with a **recursive website crawler/mirror** and powerful
+> **filters**. A modern command-line **alternative to `wget` and `aria2`** that
+> rolls both into one tool. Linux · macOS · Windows.*
+
 > ⚖️ **Licenza:** software *source-available* sotto **PolyForm Noncommercial
 > 1.0.0** — libero per qualsiasi uso **non commerciale**; per l'uso commerciale
 > serve una licenza a pagamento. Vedi [Licenza](#licenza).
@@ -62,6 +68,25 @@ Verifica l'integrità con [`SHA256SUMS`](https://github.com/nicfio/Scraper/relea
 ────────────────────────────────────────────────────────────────────────
  2 attivi · 0 fatti · 3.2M · 525K/s
 ```
+
+## Perché scrap? (vs wget e aria2)
+
+`wget` sa fare crawling ricorsivo ma scarica ogni file su una singola connessione;
+`aria2` è velocissimo grazie al multi-connessione ma non fa mirroring di un sito.
+Di solito ti servono **entrambi** — e due tool diversi, con due sintassi diverse.
+
+`scrap` mette le due cose nello stesso binario: il **download multi-connessione**
+in stile aria2 **e** il **crawling/mirror ricorsivo** in stile wget, più una
+batteria di filtri, autenticazione e cookie. Un solo eseguibile statico, zero
+dipendenze runtime, stessa sintassi per tutto.
+
+| | `wget` | `aria2` | **`scrap`** |
+|---|:---:|:---:|:---:|
+| Download multi-connessione (range HTTP paralleli) | ✗ | ✓ | **✓** |
+| Crawling / mirror ricorsivo di un sito | ✓ | ✗ | **✓** |
+| Filtri (estensione, regex, dominio, dimensione, quota) | parziale | ✗ | **✓** |
+| Resume + retry per-segmento | ✓ | ✓ | **✓** |
+| Binario singolo, zero dipendenze | ✗ | ✗ | **✓** |
 
 ## Cosa fa
 
@@ -158,3 +183,10 @@ Per una licenza commerciale, scrivi a **Nicola Fiorillo — github.com/nic-fio**
 ## Autore
 
 **Nicola Fiorillo** · github.com/nic-fio · [github.com/nicfio](https://github.com/nicfio)
+
+---
+
+<sub>*Keywords: wget alternative · aria2 alternative · multi-connection / segmented
+download manager · parallel HTTP range downloader · recursive website crawler &
+mirror · CLI download tool · single static Go binary · resume, rate-limit, filters
+· Linux, macOS, Windows.*</sub>
