@@ -1,6 +1,9 @@
 # Binario compilato
 /scrap
 
+# Binari multi-architettura prodotti da `make dist`
+/dist/
+
 # Artefatti di download
 *.part
 *.part.scrap

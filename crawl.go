@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"net/url"
@@ -11,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"golang.org/x/net/html"
 )
 
 // Engine è il cuore condiviso da download e crawling.
@@ -179,41 +182,55 @@ func (e *Engine) process(u *url.URL, depth int) {
 }
 
 func (e *Engine) crawlHTML(u *url.URL, depth int) {
-	req, err := e.client.newRequest("GET", u.String())
-	if err != nil {
-		return
-	}
-	resp, err := e.client.Do(req)
+	var body []byte
+	var base *url.URL
+	var ct string
+	err := e.withRetry(func() error {
+		req, err := e.client.newRequest("GET", u.String())
+		if err != nil {
+			return err
+		}
+		resp, err := e.client.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode >= 400 {
+			return statusError(resp)
+		}
+		b, err := io.ReadAll(&meterReader{r: io.LimitReader(resp.Body, 32<<20), lim: e.rl, prog: e.prog})
+		if err != nil {
+			return err
+		}
+		body, base, ct = b, resp.Request.URL, resp.Header.Get("Content-Type")
+		return nil
+	})
 	if err != nil {
 		e.handleErr(u.String(), err)
 		return
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		e.handleErr(u.String(), errf2("HTTP %d", resp.StatusCode))
-		return
-	}
-	body, err := io.ReadAll(&meterReader{r: io.LimitReader(resp.Body, 32<<20), lim: e.rl, prog: e.prog})
-	if err != nil {
-		return
-	}
-	base := resp.Request.URL
 
-	// salva la pagina
-	if e.filters.reserveFile() {
-		dest := e.localPath(base, true)
-		if os.MkdirAll(filepath.Dir(dest), 0o755) == nil {
-			if os.WriteFile(dest, body, 0o644) == nil {
-				e.prog.quickDone(dest, int64(len(body)))
-				e.dmu.Lock()
-				e.downloaded[base.String()] = dest
-				e.htmlFiles[dest] = true
-				e.dmu.Unlock()
+	// La pagina è già stata scaricata perché serve per estrarre i link: la
+	// salviamo su disco solo se supera i filtri utente (estensione/dimensione/
+	// content-type). Il budget --max-files viene consumato solo se salviamo davvero.
+	if e.filters.allowSaveHTML(base, ct, int64(len(body))) {
+		if e.filters.reserveFile() {
+			dest := e.localPath(base, true)
+			if os.MkdirAll(filepath.Dir(dest), 0o755) == nil {
+				if os.WriteFile(dest, body, 0o644) == nil {
+					e.prog.quickDone(dest, int64(len(body)))
+					e.dmu.Lock()
+					e.downloaded[base.String()] = dest
+					e.htmlFiles[dest] = true
+					e.dmu.Unlock()
+				}
 			}
+		} else {
+			e.stop()
+			return
 		}
 	} else {
-		e.stop()
-		return
+		logf(e.cfg, "pagina non salvata (fuori dai filtri), seguo solo i link: %s", base)
 	}
 
 	if depth >= e.cfg.Level {
@@ -235,15 +252,19 @@ func (e *Engine) handleErr(rawurl string, err error) {
 
 // ---- estrazione link ----
 
-var (
-	reHref   = regexp.MustCompile(`(?i)(?:href|src)\s*=\s*["']?([^"'\s>]+)`)
-	reSrcset = regexp.MustCompile(`(?i)srcset\s*=\s*["']([^"']+)["']`)
-	reCSSurl = regexp.MustCompile(`(?i)url\(\s*["']?([^"')]+)`)
-)
+// reCSSurl cattura gli url(...) nel CSS (attributi style inline e blocchi <style>).
+var reCSSurl = regexp.MustCompile(`(?i)url\(\s*["']?([^"')]+)`)
 
+// extractLinks estrae gli URL assoluti referenziati dalla pagina usando un vero
+// parser HTML tollerante all'HTML malformato: raccoglie href/src/poster e le voci
+// di srcset, rispetta un eventuale <base href> per la risoluzione dei relativi, e
+// recupera gli url(...) sia dagli attributi style inline sia dal contenuto dei
+// blocchi <style>. Rispetto alla vecchia estrazione a regex evita i falsi positivi
+// (es. URL dentro il codice JavaScript) e gestisce correttamente tag annidati,
+// virgolette miste ed entità.
 func extractLinks(base *url.URL, body []byte) []string {
-	s := string(body)
 	set := map[string]bool{}
+	resolveBase := base
 	add := func(raw string) {
 		raw = strings.TrimSpace(raw)
 		if raw == "" || strings.HasPrefix(raw, "#") ||
@@ -257,31 +278,95 @@ func extractLinks(base *url.URL, body []byte) []string {
 		if err != nil {
 			return
 		}
-		abs := base.ResolveReference(ref)
+		abs := resolveBase.ResolveReference(ref)
 		abs.Fragment = ""
 		if abs.Scheme == "http" || abs.Scheme == "https" {
 			set[abs.String()] = true
 		}
 	}
-	for _, m := range reHref.FindAllStringSubmatch(s, -1) {
-		add(m[1])
-	}
-	for _, m := range reSrcset.FindAllStringSubmatch(s, -1) {
-		for _, part := range strings.Split(m[1], ",") {
-			fields := strings.Fields(part)
-			if len(fields) > 0 {
-				add(fields[0])
+	addSrcset := func(v string) {
+		for _, part := range strings.Split(v, ",") {
+			if f := strings.Fields(part); len(f) > 0 {
+				add(f[0])
 			}
 		}
 	}
-	for _, m := range reCSSurl.FindAllStringSubmatch(s, -1) {
-		add(m[1])
+	addCSS := func(v string) {
+		for _, m := range reCSSurl.FindAllStringSubmatch(v, -1) {
+			add(m[1])
+		}
 	}
-	out := make([]string, 0, len(set))
-	for k := range set {
-		out = append(out, k)
+
+	z := html.NewTokenizer(bytes.NewReader(body))
+	inStyle := false
+	for {
+		switch z.Next() {
+		case html.ErrorToken:
+			// ErrorToken segnala la fine del documento (io.EOF) o un errore
+			// irrecuperabile del tokenizer: in entrambi i casi abbiamo finito.
+			out := make([]string, 0, len(set))
+			for k := range set {
+				out = append(out, k)
+			}
+			return out
+		case html.TextToken:
+			if inStyle {
+				addCSS(string(z.Text()))
+			}
+		case html.StartTagToken, html.SelfClosingTagToken:
+			name, hasAttr := z.TagName()
+			tag := string(name)
+			if tag == "style" {
+				inStyle = true
+			}
+			var href, src, poster, srcset, style string
+			for hasAttr {
+				var k, v []byte
+				k, v, hasAttr = z.TagAttr()
+				switch string(k) {
+				case "href":
+					href = string(v)
+				case "src":
+					src = string(v)
+				case "poster":
+					poster = string(v)
+				case "srcset":
+					srcset = string(v)
+				case "style":
+					style = string(v)
+				}
+			}
+			// <base href> ridefinisce la base per i link successivi e non è esso
+			// stesso una risorsa da scaricare.
+			if tag == "base" {
+				if href != "" {
+					if u, err := url.Parse(strings.TrimSpace(href)); err == nil {
+						resolveBase = base.ResolveReference(u)
+					}
+				}
+				continue
+			}
+			if href != "" {
+				add(href)
+			}
+			if src != "" {
+				add(src)
+			}
+			if poster != "" {
+				add(poster)
+			}
+			if srcset != "" {
+				addSrcset(srcset)
+			}
+			if style != "" {
+				addCSS(style)
+			}
+		case html.EndTagToken:
+			if name, _ := z.TagName(); string(name) == "style" {
+				inStyle = false
+			}
+		}
 	}
-	return out
 }
 
 // ---- mappatura su filesystem ----

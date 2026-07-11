@@ -93,6 +93,37 @@ func (f *Filters) allowDownloadExt(u *url.URL) bool {
 	return true
 }
 
+// allowSaveHTML decide se una pagina HTML — che il crawler ha comunque scaricato
+// per estrarne i link — vada anche salvata su disco. Applica gli stessi filtri
+// utente (estensione, dimensione, content-type) usati per le altre risorse, così
+// che un crawl con -A/--min-size/--types non finisca per riempire il disco di
+// pagine indice che non interessano. Se l'utente non ha impostato alcun filtro di
+// contenuto la pagina viene salvata (comportamento mirror classico).
+func (f *Filters) allowSaveHTML(u *url.URL, ct string, size int64) bool {
+	if !f.allowSize(size) {
+		return false
+	}
+	if len(f.types) > 0 && !f.allowType(ct) {
+		return false
+	}
+	if f.accept != nil || f.reject != nil {
+		// Le pagine HTML raramente hanno un'estensione nel path (es. "/dir/" o
+		// ".php"): trattiamo l'assenza di estensione come "html" per confrontarla
+		// con la whitelist/blacklist.
+		ext := urlExt(u)
+		if ext == "" {
+			ext = "html"
+		}
+		if f.reject != nil && f.reject[ext] {
+			return false
+		}
+		if f.accept != nil && !f.accept[ext] {
+			return false
+		}
+	}
+	return true
+}
+
 func (f *Filters) allowSize(n int64) bool {
 	if n < 0 {
 		return true // dimensione sconosciuta: non possiamo escludere

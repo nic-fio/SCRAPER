@@ -34,7 +34,8 @@ var helpSections = []helpSection{
 		{"-o, --output FILE", "Salva con questo nome (solo con un singolo URL)."},
 		{"-d, --dir DIR", "Cartella di destinazione (default la corrente)."},
 		{"-c, --continue", "Riprende un download interrotto da dove si era fermato."},
-		{"--retries N", "Tentativi per ciascun segmento prima di rinunciare (default 5)."},
+		{"--retries N", "Tentativi per ciascun segmento prima di rinunciare (default 5). Ci si ferma subito sugli errori HTTP permanenti (es. 401/403/404)."},
+		{"--retry-wait SEC", "Attesa iniziale del backoff esponenziale tra i tentativi (default 2): raddoppia a ogni ritentativo (tetto 60s, con jitter) e rispetta l'header Retry-After del server sui 429/503."},
 		{"--rate SIZE", "Limita la banda complessiva (es. 2M = 2 MiB/s)."},
 		{"--timeout SEC", "Timeout di connessione e lettura (default 60)."},
 	}},
@@ -64,6 +65,7 @@ var helpSections = []helpSection{
 	{"Autenticazione e cookie", []helpRow{
 		{"--user UTENTE", "Nome utente per l'autenticazione HTTP Basic o Digest."},
 		{"--password PASS", "Password per l'autenticazione HTTP Basic o Digest."},
+		{"--auth MODO", "Schema di autenticazione: auto|basic|digest (default auto)."},
 		{"--login-url URL", "Esegue un login via form POST a questo URL prima di iniziare."},
 		{"--login-data DATI", "Campi del form di login (es. user=foo&pass=bar)."},
 		{"--bearer TOKEN", "Aggiunge l'intestazione Authorization: Bearer TOKEN."},
@@ -73,10 +75,11 @@ var helpSections = []helpSection{
 		{"--save-cookies FILE", "Salva i cookie di sessione in un file Netscape al termine."},
 	}},
 	{"Generali", []helpRow{
-		{"-U, --user-agent UA", "Imposta lo User-Agent (default scrap/1.0)."},
+		{"-U, --user-agent UA", "Imposta lo User-Agent (default " + defaultUserAgent + ")."},
 		{"--referer URL", "Imposta l'intestazione Referer."},
 		{"--insecure", "Non verifica i certificati TLS dei server."},
-		{"-q, --quiet", "Modalità silenziosa: mostra solo gli errori."},
+		{"-qe", "Silenzioso: nessun output tranne gli errori."},
+		{"-qa", "Silenzioso totale: nessun output, errori inclusi (exit code conservato)."},
 		{"-v, --verbose", "Mostra un log dettagliato delle operazioni."},
 		{"-i, --input-file FILE", "Legge l'elenco degli URL da un file (uno per riga)."},
 	}},
@@ -225,7 +228,7 @@ func buildHelp(color bool, width int) string {
 	hdr("Vedere anche")
 	para(col(color, aBold, "curl")+"(1)", ti)
 
-	w("\n" + col(color, aBold, threeCol("scrap 1.0", "", "SCRAP(1)", width)) + "\n")
+	w("\n" + col(color, aBold, threeCol(appName+" "+appVersion, "", "SCRAP(1)", width)) + "\n")
 	return b.String()
 }
 

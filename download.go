@@ -27,41 +27,46 @@ type probeInfo struct {
 // probe scopre dimensione, content-type e supporto ai range con una sola
 // richiesta GET Range: bytes=0-0 (poi chiude il corpo).
 func (e *Engine) probe(rawurl string) (*probeInfo, error) {
-	req, err := e.client.newRequest("GET", rawurl)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Range", "bytes=0-0")
-	resp, err := e.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16))
-		resp.Body.Close()
-	}()
-	info := &probeInfo{size: -1, ct: resp.Header.Get("Content-Type"), finalURL: resp.Request.URL.String()}
-	switch resp.StatusCode {
-	case http.StatusPartialContent: // 206
-		info.ranges = true
-		if cr := resp.Header.Get("Content-Range"); cr != "" {
-			if i := strings.LastIndex(cr, "/"); i >= 0 {
-				if n, err := strconv.ParseInt(strings.TrimSpace(cr[i+1:]), 10, 64); err == nil {
-					info.size = n
+	var info *probeInfo
+	err := e.withRetry(func() error {
+		req, err := e.client.newRequest("GET", rawurl)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Range", "bytes=0-0")
+		resp, err := e.client.Do(req)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16))
+			resp.Body.Close()
+		}()
+		pi := &probeInfo{size: -1, ct: resp.Header.Get("Content-Type"), finalURL: resp.Request.URL.String()}
+		switch resp.StatusCode {
+		case http.StatusPartialContent: // 206
+			pi.ranges = true
+			if cr := resp.Header.Get("Content-Range"); cr != "" {
+				if i := strings.LastIndex(cr, "/"); i >= 0 {
+					if n, err := strconv.ParseInt(strings.TrimSpace(cr[i+1:]), 10, 64); err == nil {
+						pi.size = n
+					}
 				}
 			}
+		case http.StatusOK: // 200: niente range
+			pi.ranges = false
+			if resp.ContentLength >= 0 {
+				pi.size = resp.ContentLength
+			}
+		case http.StatusRequestedRangeNotSatisfiable: // 416: file vuoto
+			pi.size = 0
+		default:
+			return statusError(resp)
 		}
-	case http.StatusOK: // 200: niente range
-		info.ranges = false
-		if resp.ContentLength >= 0 {
-			info.size = resp.ContentLength
-		}
-	case http.StatusRequestedRangeNotSatisfiable: // 416: file vuoto
-		info.size = 0
-	default:
-		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
-	}
-	return info, nil
+		info = pi
+		return nil
+	})
+	return info, err
 }
 
 // downloadFile salva una risorsa su dest, usando multi-segmento se possibile.
@@ -114,6 +119,8 @@ func (e *Engine) downloadFile(rawurl, dest string, info *probeInfo) error {
 	e.recordDownloaded(rawurl, dest)
 	return nil
 }
+
+// withRetry è definito in retry.go (backoff esponenziale, jitter, Retry-After).
 
 func makeSegs(size int64, n int) []*segProg {
 	segs := make([]*segProg, n)
@@ -236,7 +243,7 @@ func (e *Engine) fetchRange(rawurl string, f *os.File, from, end int64, cb func(
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusPartialContent && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP %d sul range", resp.StatusCode)
+		return statusError(resp)
 	}
 	r := &meterReader{r: resp.Body, lim: e.rl, prog: e.prog}
 	buf := make([]byte, 64*1024)
@@ -291,7 +298,7 @@ func (e *Engine) singleStream(rawurl, dest, part string, info *probeInfo, fp *fi
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode >= 400 {
-			return fmt.Errorf("HTTP %d", resp.StatusCode)
+			return statusError(resp)
 		}
 		r := &meterReader{r: resp.Body, lim: e.rl, prog: e.prog}
 		buf := make([]byte, 64*1024)
@@ -322,17 +329,3 @@ func (e *Engine) singleStream(rawurl, dest, part string, info *probeInfo, fp *fi
 	return os.Rename(part, dest)
 }
 
-// withRetry riprova un'operazione fino a cfg.Retries volte.
-func (e *Engine) withRetry(fn func() error) error {
-	var err error
-	for attempt := 0; attempt <= e.cfg.Retries; attempt++ {
-		if attempt > 0 {
-			time.Sleep(time.Duration(e.cfg.RetryWait) * time.Second)
-		}
-		err = fn()
-		if err == nil || errors.Is(err, errQuota) {
-			return err
-		}
-	}
-	return err
-}

@@ -1,3 +1,5 @@
 module scrap
 
 go 1.23
+
+require golang.org/x/net v0.30.0

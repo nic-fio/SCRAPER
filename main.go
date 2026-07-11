@@ -11,6 +11,22 @@ import (
 
 var stderr = os.Stderr
 
+// gQuietAll, impostato da -qa, sopprime ogni output, errori inclusi.
+var gQuietAll bool
+
+// Identità dell'applicazione, centralizzata in un solo punto.
+const (
+	appName    = "scrap"
+	appVersion = "1.0"
+	appURL     = "https://github.com/nicfio/Scraper"
+)
+
+// defaultUserAgent identifica onestamente lo scraper con la convenzione usata
+// dai bot ben educati (nome/versione più un URL informativo), invece di fingersi
+// un browser. Molti server sono più permissivi con un UA riconoscibile e
+// contattabile, e resta comunque sovrascrivibile con -U per i casi in cui serve.
+var defaultUserAgent = appName + "/" + appVersion + " (+" + appURL + ")"
+
 // Config raccoglie tutte le opzioni a riga di comando.
 type Config struct {
 	// download / multi-segmento
@@ -52,7 +68,8 @@ type Config struct {
 	UserAgent string
 	Referer   string
 	Insecure  bool
-	Quiet     bool
+	QuietErr  bool // -qe: nessun output tranne gli errori
+	QuietAll  bool // -qa: nessun output, errori inclusi
 	Verbose   bool
 	InputFile string
 }
@@ -66,7 +83,7 @@ func (s *stringList) Set(v string) error {
 }
 
 func logf(cfg *Config, format string, args ...any) {
-	if cfg == nil || !cfg.Verbose {
+	if gQuietAll || cfg == nil || !cfg.Verbose {
 		return
 	}
 	s := fmt.Sprintf(format, args...)
@@ -77,6 +94,9 @@ func logf(cfg *Config, format string, args ...any) {
 	}
 }
 func errf(format string, args ...any) {
+	if gQuietAll {
+		return
+	}
 	s := "scrap: " + fmt.Sprintf(format, args...)
 	if gProg != nil {
 		gProg.Log(s)
@@ -112,8 +132,8 @@ func main() {
 	strVar(fs, &cfg.Output, "o", "output", "", "nome file di output (URL singolo)")
 	strVar(fs, &cfg.Dir, "d", "dir", ".", "cartella di destinazione")
 	boolVar(fs, &cfg.Continue, "c", "continue", false, "riprende download interrotti")
-	fs.IntVar(&cfg.Retries, "retries", 5, "tentativi per segmento")
-	fs.IntVar(&cfg.RetryWait, "retry-wait", 2, "attesa (s) tra i tentativi")
+	fs.IntVar(&cfg.Retries, "retries", 5, "tentativi per segmento (stop sugli errori permanenti)")
+	fs.IntVar(&cfg.RetryWait, "retry-wait", 2, "attesa iniziale (s) del backoff esponenziale")
 	fs.StringVar(&rateS, "rate", "0", "limite banda globale (es. 2M)")
 	fs.IntVar(&cfg.Timeout, "timeout", 60, "timeout di rete (s)")
 
@@ -158,15 +178,17 @@ func main() {
 	fs.StringVar(&cfg.SaveCookies, "save-cookies", "", "salva cookies.txt (Netscape)")
 
 	// generali
-	strVar(fs, &cfg.UserAgent, "U", "user-agent", "scrap/1.0", "User-Agent")
+	strVar(fs, &cfg.UserAgent, "U", "user-agent", defaultUserAgent, "User-Agent")
 	fs.StringVar(&cfg.Referer, "referer", "", "Referer")
 	fs.BoolVar(&cfg.Insecure, "insecure", false, "non verifica i certificati TLS")
-	boolVar(fs, &cfg.Quiet, "q", "quiet", false, "silenzioso")
+	fs.BoolVar(&cfg.QuietErr, "qe", false, "silenzioso: nessun output tranne gli errori")
+	fs.BoolVar(&cfg.QuietAll, "qa", false, "silenzioso totale: nessun output, errori inclusi")
 	boolVar(fs, &cfg.Verbose, "v", "verbose", false, "log dettagliato")
 	strVar(fs, &cfg.InputFile, "i", "input-file", "", "legge gli URL da file")
 
 	fs.Parse(os.Args[1:])
 	cfg.Headers = headers
+	gQuietAll = cfg.QuietAll
 
 	// conversioni
 	var err error
@@ -244,7 +266,7 @@ func main() {
 		}
 	}
 
-	prog := NewProgress(cfg.Quiet)
+	prog := NewProgress(cfg.QuietErr || cfg.QuietAll)
 	gProg = prog
 	go prog.run()
 
