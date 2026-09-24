@@ -64,7 +64,7 @@ Il perché di ciascuna è in [docs/decisioni-e-storia.md](docs/decisioni-e-stori
 
 Rilascio: aggiorna `appVersion` in `main.go`, la versione in `README.md`,
 `docs/index.html` e nei due manuali, `make`, poi crea un tag annotato `vX.Y.Z`
-e fai push del tag: la CI costruisce i nove binari e pubblica la release, con
+e fai push del tag: la CI costruisce i binari Linux amd64 e arm64 e pubblica la release, con
 il messaggio del tag come note.
 
 ## A che punto è
@@ -73,5 +73,4 @@ Versione 1.1 (settembre 2026): migrazione nel repository pubblico con
 correzione dei difetti trovati studiando il codice (elenco nel manuale
 tecnico, capitolo *Limiti noti e punti aperti*). Punti aperti: nessun `fsync`
 dello stato di ripresa, un goroutine per URL nei crawl enormi, `robots.txt`
-solo a prefissi, login da modulo senza token anti-CSRF, binari macOS/Windows
-mai provati sul campo.
+solo a prefissi, login da modulo senza token anti-CSRF.

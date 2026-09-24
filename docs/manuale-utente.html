@@ -39,7 +39,7 @@
   riferimento completo di tutte le opzioni.</p>
   <div class="meta">
     <span><b>Versione</b> 1.1</span>
-    <span><b>Sistema</b> Linux (anche macOS e Windows)</span>
+    <span><b>Sistema</b> Linux (x86-64 e ARM a 64 bit)</span>
     <span><b>Programma</b> un unico file, niente da installare</span>
   </div>
 </header>
@@ -122,21 +122,18 @@ $ ./scrap --help</pre>
 <p>Non serve installare altro.</p>
 
 <h3 id="programma-pronto" data-index="release;binario">Solo il programma, dalle release</h3>
-<p>Nella pagina delle <a href="https://github.com/nic-fio/SCRAPER/releases/latest">release su GitHub</a> c'è un file
-per ogni tipo di computer:</p>
+<p>Nella pagina delle <a href="https://github.com/nic-fio/SCRAPER/releases/latest">release su GitHub</a> ci sono due
+file:</p>
 <table>
   <thead><tr><th>File</th><th>Per</th></tr></thead>
   <tbody>
     <tr><td><code>scrap-linux-amd64</code></td><td>PC e tablet Linux con processore Intel o AMD (la maggior parte).</td></tr>
     <tr><td><code>scrap-linux-arm64</code></td><td>Raspberry Pi 4 o 5 e altri ARM a 64 bit.</td></tr>
-    <tr><td><code>scrap-linux-armv7</code>, <code>scrap-linux-armv6</code></td><td>ARM a 32 bit, per esempio i Raspberry Pi più vecchi.</td></tr>
-    <tr><td><code>scrap-linux-386</code>, <code>scrap-linux-riscv64</code></td><td>PC a 32 bit; schede RISC-V.</td></tr>
-    <tr><td><code>scrap-darwin-arm64</code>, <code>scrap-darwin-amd64</code></td><td>Mac con processore Apple, Mac con processore Intel.</td></tr>
-    <tr><td><code>scrap-windows-amd64.exe</code></td><td>Windows a 64 bit (da usare nel Prompt dei comandi o in PowerShell).</td></tr>
   </tbody>
 </table>
-<p>Su Linux, se non sai quale ti serve, il comando <code>uname -m</code> te lo dice: <code>x86_64</code> vuol dire
-amd64, <code>aarch64</code> vuol dire arm64, <code>armv7l</code> vuol dire armv7. Scaricato il file:</p>
+<p>Se non sai quale ti serve, il comando <code>uname -m</code> te lo dice: <code>x86_64</code> vuol dire amd64,
+<code>aarch64</code> vuol dire arm64. Per altri sistemi (Mac, Windows, ARM a 32 bit) si può costruire il programma dal
+sorgente: vedi il <a href="manuale-tecnico.html#build">manuale tecnico</a>. Scaricato il file:</p>
 <pre class="terminal">$ mv ~/Scaricati/scrap-linux-amd64 scrap
 $ chmod +x scrap
 $ ./scrap --help</pre>
@@ -461,7 +458,7 @@ terminale una guida a schede: <em>Info</em>, <em>Download</em>, <em>Crawl</em>, 
     <tr><td><kbd>q</kbd>, <kbd>Esc</kbd>, <kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Esce.</td></tr>
   </tbody>
 </table>
-<p>Se il terminale è troppo piccolo (meno di 44 colonne o 10 righe), su macOS e Windows, o se l'uscita non va su uno
+<p>Se il terminale è troppo piccolo (meno di 44 colonne o 10 righe), o se l'uscita non va su uno
 schermo (per esempio <code>scrap --help &gt; guida.txt</code>), la stessa guida compare come testo nel formato delle
 pagine di manuale: sfogliabile con <code>less</code> quando va su uno schermo, testo semplice altrimenti.</p>
 

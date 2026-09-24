@@ -53,8 +53,8 @@ cd SCRAPER
 ```
 
 **Solo il programma, senza clonare**: dall'[ultima release](https://github.com/nic-fio/SCRAPER/releases/latest)
-scarica il file per il tuo sistema (Linux amd64, arm64, armv7, armv6, 386,
-riscv64; macOS; Windows), poi:
+scarica `scrap-linux-amd64` (PC e tablet x86-64) o `scrap-linux-arm64`
+(Raspberry Pi 4/5 e altri ARM a 64 bit), poi:
 
 ```
 mv scrap-linux-amd64 scrap && chmod +x scrap

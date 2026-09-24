@@ -25,7 +25,7 @@ jobs:
       - name: Test (vet, gofmt, -race, controlli dei manuali)
         run: make test
 
-      - name: Binari per Linux, macOS e Windows
+      - name: Binari Linux amd64 e arm64
         run: make dist
 
       - name: Prova il binario Linux x86-64
@@ -71,10 +71,6 @@ jobs:
           |---|---|
           | `scrap-linux-amd64` | PC e tablet Linux con processore Intel o AMD |
           | `scrap-linux-arm64` | Raspberry Pi 4/5 e altri ARM a 64 bit |
-          | `scrap-linux-armv7`, `scrap-linux-armv6` | ARM a 32 bit (Raspberry Pi più vecchi) |
-          | `scrap-linux-386`, `scrap-linux-riscv64` | PC a 32 bit, schede RISC-V |
-          | `scrap-darwin-arm64`, `scrap-darwin-amd64` | Mac con Apple Silicon, Mac Intel |
-          | `scrap-windows-amd64.exe` | Windows a 64 bit |
 
           Rinomina il file in `scrap`, rendilo eseguibile con `chmod +x scrap`
           e controlla il download con `sha256sum -c SHA256SUMS --ignore-missing`.

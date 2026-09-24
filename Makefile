@@ -3,7 +3,7 @@
 #   make            ./scrap, il binario statico Linux x86-64 registrato nel repository
 #   make test       go vet, gofmt, test con -race, controlli dei manuali
 #   make docs-check solo i controlli dei manuali
-#   make dist       binari statici per Linux (6 architetture), macOS e Windows in dist/
+#   make dist       binari statici per Linux amd64 e arm64 in dist/
 #   make install    copia ./scrap in /usr/local/bin (chiede sudo se serve)
 #   make clean      elimina dist/ (./scrap resta: fa parte del repository)
 #
@@ -16,11 +16,7 @@ LDFLAGS := -s -w
 BUILD   := CGO_ENABLED=0 $(GO) build -trimpath -ldflags "$(LDFLAGS)"
 
 # sistema/architettura[/variante ARM] : nome del file in dist/
-TARGETS := linux/amd64:scrap-linux-amd64 linux/arm64:scrap-linux-arm64 \
-           linux/arm/7:scrap-linux-armv7 linux/arm/6:scrap-linux-armv6 \
-           linux/386:scrap-linux-386 linux/riscv64:scrap-linux-riscv64 \
-           darwin/amd64:scrap-darwin-amd64 darwin/arm64:scrap-darwin-arm64 \
-           windows/amd64:scrap-windows-amd64.exe
+TARGETS := linux/amd64:scrap-linux-amd64 linux/arm64:scrap-linux-arm64
 
 .PHONY: all build test vet fmt-check docs-check dist install clean
 

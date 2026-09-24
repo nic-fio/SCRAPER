@@ -148,7 +148,7 @@ $ make dist</pre>
   <tbody>
     <tr><td><code>make</code></td><td><code>GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o scrap .</code>: rigenera l'eseguibile registrato, statico e senza simboli, sempre per x86-64 anche se costruito su ARM.</td></tr>
     <tr><td><code>make test</code></td><td><code>go vet</code>, <code>gofmt -l</code>, <code>tools/check-docs.py</code>, poi <code>go test -race -count=1</code>. Il <code>-race</code> richiede cgo, quindi <code>gcc</code>.</td></tr>
-    <tr><td><code>make dist</code></td><td>Nove binari in <code>dist/</code> (Linux amd64, arm64, armv7, armv6, 386, riscv64; macOS amd64 e arm64; Windows amd64) più <code>SHA256SUMS</code>.</td></tr>
+    <tr><td><code>make dist</code></td><td>Binari <code>dist/scrap-linux-amd64</code> e <code>dist/scrap-linux-arm64</code> più <code>SHA256SUMS</code>. Per altri sistemi: <code>GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o scrap-mac .</code> (o <code>windows</code>, <code>GOARCH=arm GOARM=7</code>…): il codice compila ovunque, ma su sistemi diversi da Linux la guida a schede non c'è.</td></tr>
     <tr><td><code>make install</code></td><td>Ricostruisce e copia <code>scrap</code> in <code>/usr/local/bin</code>.</td></tr>
     <tr><td><code>make clean</code></td><td>Elimina <code>dist/</code> (<code>./scrap</code> resta: fa parte del repository).</td></tr>
   </tbody>
@@ -160,7 +160,7 @@ toolchain giusto. La prima build scarica <code>golang.org/x/net</code> nella cac
 <h3 id="ci-release" data-index="CI;release;tag">CI e release</h3>
 <p>La CI (<code>.github/workflows/ci.yml</code>) gira a ogni push su <code>main</code> e a ogni pull request: installa
 Go dalla versione di <code>go.mod</code>, esegue <code>make test</code> e <code>make dist</code>, prova il binario
-Linux e conserva i binari. Su un tag <code>v*</code> un secondo job crea la release GitHub con i nove binari e
+Linux e conserva i binari. Su un tag <code>v*</code> un secondo job crea la release GitHub con i due binari e
 <code>SHA256SUMS</code>; il messaggio del tag annotato diventa la descrizione.</p>
 <ol class="steps">
   <li>Aggiorna la versione in <code>main.go</code> (<code>appVersion</code>), <code>README.md</code>,
@@ -637,8 +637,6 @@ verificano <code>os.Exit</code>, messaggi e silenzio senza compilare un binario 
         <td>Il totale può superare <code>--quota</code> di qualche blocco per ogni download attivo.</td></tr>
     <tr><td><code>main.go</code></td><td>Password e token passano come argomenti.</td>
         <td>Restano nella cronologia della shell e sono visibili in <code>ps</code> durante l'esecuzione.</td></tr>
-    <tr><td>macOS, Windows</td><td>Binari costruiti dalla CI ma mai provati su quei sistemi; niente TUI.</td>
-        <td>La guida è solo testuale; il resto dovrebbe funzionare perché è Go standard.</td></tr>
   </tbody>
 </table>
 

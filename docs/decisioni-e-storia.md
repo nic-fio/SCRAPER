@@ -91,9 +91,11 @@ sintassi.
 
 Il codice dipendente dal sistema (termios, ioctl, segnali) è isolato in
 `term_linux.go` (reale) e `term_other.go` (stub). Il programma si compila per
-Linux (6 architetture), macOS e Windows; la TUI interattiva c'è solo su Linux,
-altrove `--help` mostra la pagina testuale. Download, crawl e filtri funzionano
-ovunque. I binari macOS e Windows non sono mai stati provati su quei sistemi.
+Linux, macOS e Windows; la TUI interattiva c'è solo su Linux, altrove `--help`
+mostra la pagina testuale. Fino alla 1.1.0 le release contenevano nove binari
+(sei architetture Linux, macOS, Windows); su richiesta dell'utente, dal
+settembre 2026 sono solo due: Linux amd64 e arm64. Gli altri si costruiscono
+dal sorgente.
 
 ## 6. Luglio 2026: robustezza
 
