@@ -56,8 +56,10 @@ type Progress struct {
 	start     time.Time
 	liveLines int
 
-	bytes int64 // aggregato atomico
-	done  int64 // file completati atomico
+	bytes  int64 // aggregato atomico
+	done   int64 // file completati atomico
+	failed int64 // indirizzi falliti atomico
+	skip   int64 // file già presenti, saltati atomico
 
 	aggLastBytes int64
 	aggLastTime  time.Time
@@ -80,6 +82,15 @@ func NewProgress(quiet bool) *Progress {
 }
 
 func (p *Progress) addBytes(n int64) { atomic.AddInt64(&p.bytes, n) }
+
+// fail conteggia un indirizzo non scaricato (errore dopo i tentativi).
+func (p *Progress) fail() { atomic.AddInt64(&p.failed, 1) }
+
+// skipped conteggia un file saltato perché già presente su disco.
+func (p *Progress) skipped() { atomic.AddInt64(&p.skip, 1) }
+
+// Failed restituisce il numero di indirizzi falliti.
+func (p *Progress) Failed() int64 { return atomic.LoadInt64(&p.failed) }
 
 func (p *Progress) run() {
 	if !p.tty {
@@ -120,7 +131,9 @@ func (p *Progress) finishFile(fp *fileProg, ok bool) {
 	}
 	if ok {
 		atomic.AddInt64(&p.done, 1)
-		p.logLocked(p.doneLine(fp))
+		if !p.quiet {
+			p.logLocked(p.doneLine(fp))
+		}
 	} else {
 		p.render()
 	}
@@ -236,9 +249,10 @@ func (p *Progress) buildLines() []string {
 	done := atomic.LoadInt64(&p.done)
 	active := len(p.files)
 	sep := col(p.color, aDim, strings.Repeat("─", min(w-1, 72)))
-	summary := fmt.Sprintf(" %s attivi · %s fatti · %s · %s",
+	summary := fmt.Sprintf(" %s attivi · %s fatti%s · %s · %s",
 		col(p.color, aBold, itoa(active)),
 		col(p.color, aBold, itoa(int(done))),
+		p.failedNote(),
 		humanShort(b),
 		col(p.color, aCyan, humanShort(int64(p.aggSpeed))+"/s"))
 	lines = append(lines, sep, summary)
@@ -333,8 +347,24 @@ func (p *Progress) finish() {
 		avg = float64(b) / el
 	}
 	icon := col(p.color, aBold+aGreen, "✓")
-	fmt.Fprintf(stderr, "%s %s file · %s in %s · media %s\n",
-		icon, itoa(int(f)), humanShort(b), etaStr(el), humanShort(int64(avg))+"/s")
+	if atomic.LoadInt64(&p.failed) > 0 {
+		icon = col(p.color, aBold+aRed, "✗")
+	}
+	var skip string
+	if n := atomic.LoadInt64(&p.skip); n > 0 {
+		skip = " · " + itoa(int(n)) + " già presenti"
+	}
+	fmt.Fprintf(stderr, "%s %s file%s%s · %s in %s · media %s\n",
+		icon, itoa(int(f)), p.failedNote(), skip, humanShort(b), etaStr(el), humanShort(int64(avg))+"/s")
+}
+
+// failedNote è " · N falliti" (in rosso) se qualche indirizzo è fallito.
+func (p *Progress) failedNote() string {
+	n := atomic.LoadInt64(&p.failed)
+	if n == 0 {
+		return ""
+	}
+	return " · " + col(p.color, aRed, itoa(int(n))+" falliti")
 }
 
 // ---- barre e formattazione ----

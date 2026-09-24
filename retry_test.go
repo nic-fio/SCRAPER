@@ -40,7 +40,7 @@ func TestIsRetryable(t *testing.T) {
 		{&httpStatusError{code: 401}, false},
 		{&httpStatusError{code: 403}, false},
 		{&httpStatusError{code: 404}, false},
-		{&httpStatusError{code: http.StatusRequestTimeout}, true}, // 408
+		{&httpStatusError{code: http.StatusRequestTimeout}, true},  // 408
 		{&httpStatusError{code: http.StatusTooManyRequests}, true}, // 429
 		{&httpStatusError{code: 500}, true},
 		{&httpStatusError{code: 502}, true},

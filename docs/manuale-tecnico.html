@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>scrap — Manuale tecnico</title>
+<meta name="description" content="Manuale tecnico di scrap: architettura, motore di download multi-segmento, crawler, filtri, HTTP e autenticazione, interfaccia, test, convenzioni e limiti noti.">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="topbar">
+  <button class="btn menu-btn" type="button" aria-label="Apri l'indice">&#9776; Indice</button>
+  <strong>scrap — Manuale tecnico</strong>
+</div>
+<div class="layout">
+<nav class="sidebar" aria-label="Indice">
+  <div class="brand">
+    <div class="brand-logo">{ }</div>
+    <div class="brand-text"><strong>scrap — Manuale tecnico</strong><span>versione 1.1</span></div>
+  </div>
+  <div class="search">
+    <input type="search" placeholder="Cerca  ( / )" aria-label="Cerca">
+    <div class="search-results" role="listbox"></div>
+  </div>
+  <div class="toc"></div>
+  <div class="side-tools">
+    <button class="btn print-btn" type="button">Stampa / PDF</button>
+    <a class="btn" href="manuale-utente.html">Manuale utente</a>
+  </div>
+</nav>
+
+<main>
+
+<header class="titlepage">
+  <div class="kicker">Manuale tecnico</div>
+  <h1>Dentro scrap</h1>
+  <p class="lead">Tutto quello che serve per capire, costruire, provare e modificare scrap: architettura, motore di
+  download multi-segmento, crawler, filtri, HTTP e autenticazione, interfaccia da terminale, test e convenzioni del
+  progetto.</p>
+  <div class="meta">
+    <span><b>Versione</b> 1.1</span>
+    <span><b>Linguaggio</b> Go 1.23</span>
+    <span><b>Dimensione</b> ~3.700 righe di Go, più ~900 di test</span>
+    <span><b>Dipendenze</b> solo <code>golang.org/x/net</code></span>
+  </div>
+</header>
+
+<section class="unnumbered no-toc">
+  <h2 class="unnumbered" id="contents">Sommario</h2>
+  <div class="toc-print" id="contents-list"></div>
+  <p>Premi <kbd>/</kbd> per cercare. L'<a href="#index">indice analitico</a> elenca file, funzioni e argomenti. I
+  riferimenti <code>file.go:riga</code> puntano alla versione 1.1.</p>
+</section>
+
+<!-- ===================================================================== -->
+<h2 id="panoramica">Panoramica</h2>
+
+<p class="chapter-intro">Cos'è scrap visto da dentro, i principi che l'hanno guidato e la mappa del codice.</p>
+
+<h3 id="cosa-copre">Cosa copre questo manuale</h3>
+<p>Il <a href="manuale-utente.html">manuale utente</a> spiega cosa fa scrap; questo spiega <em>come</em>. Dopo averlo
+letto dovresti sapere dove mettere le mani per cambiare il motore di download, il crawler o i filtri senza rompere il
+resto, e come verificare le modifiche. Si dà per scontato che tu conosca Go e le basi di HTTP. Il <em>perché</em> delle
+scelte è in <a href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisioni-e-storia.md">decisioni e storia</a>.</p>
+
+<h3 id="principi">Principi</h3>
+<div class="cards">
+  <div class="card"><div class="icon">1</div><h4>Un solo binario</h4>
+    <p>Eseguibile statico (<code>CGO_ENABLED=0</code>) con i certificati radice incorporati: gira anche su un sistema
+    minimo. Unica libreria esterna: il tokenizer HTML di <code>x/net</code>.</p></div>
+  <div class="card"><div class="icon">&#8649;</div><h4>Un motore, due modi</h4>
+    <p>Download diretto e crawl passano dallo stesso <code>Engine</code>: stessi tentativi, stesse barre, stessi
+    filtri.</p></div>
+  <div class="card"><div class="icon">&#8634;</div><h4>Mai un file corrotto</h4>
+    <p>Si scrive in <code>.part</code>, sempre in posizione (<code>WriteAt</code>), e si rinomina solo a download
+    completo e controllato.</p></div>
+  <div class="card"><div class="icon">&#9745;</div><h4>Buon cittadino del web</h4>
+    <p>User-Agent onesto, <code>robots.txt</code> rispettato, nessun tentativo sugli errori permanenti,
+    <code>Retry-After</code> rispettato.</p></div>
+  <div class="card"><div class="icon">&#10003;</div><h4>Test senza rete</h4>
+    <p>32 test ermetici con server HTTP locali, anche sul programma intero (stati di uscita e messaggi).</p></div>
+  <div class="card"><div class="icon">?</div><h4>La documentazione è codice</h4>
+    <p><code>make test</code> fallisce se un'opzione o un file non sono documentati o se la versione non coincide.</p></div>
+</div>
+
+<h3 id="mappa-file" data-index="mappa dei file">Mappa dei file</h3>
+<p>Tutto il programma è un unico <code>package main</code>. Le righe sono controllate da <code>tools/check-docs.py</code>:
+se un file cambia lunghezza di più del 10%, o ne compare uno nuovo senza riga qui, <code>make test</code> fallisce.</p>
+<table id="file-map">
+  <thead><tr><th>File</th><th>Righe</th><th>Contenuto</th></tr></thead>
+  <tbody>
+    <tr><td><code>main.go</code></td><td>405</td><td>Identità (<code>appVersion</code>), <code>Config</code>, definizione e controllo delle opzioni, avvio, stato di uscita, <code>logf</code>/<code>errf</code>/<code>badArg</code>.</td></tr>
+    <tr><td><code>crawl.go</code></td><td>512</td><td><code>Engine</code>: code di lavoro, crawl delle pagine, estrazione dei link e dei requisiti, mappa URL &rarr; file, <code>convertLinks</code>.</td></tr>
+    <tr><td><code>download.go</code></td><td>357</td><td>Sonda, <code>downloadFile</code>, download segmentato con stato di ripresa, flusso singolo.</td></tr>
+    <tr><td><code>retry.go</code></td><td>126</td><td>Errori HTTP, <code>Retry-After</code>, errori transitori e permanenti, backoff esponenziale con jitter.</td></tr>
+    <tr><td><code>filter.go</code></td><td>202</td><td><code>Filters</code>: estensioni, regex, domini, dimensione, tipo, <code>--max-files</code>, <code>--quota</code>.</td></tr>
+    <tr><td><code>httpclient.go</code></td><td>280</td><td>Client HTTP, timeout, sorveglianza dei trasferimenti fermi, intestazioni, Basic/Digest, login da modulo.</td></tr>
+    <tr><td><code>cookies.go</code></td><td>215</td><td>Cookie jar con dominio/percorso/scadenza, lettura e scrittura del formato Netscape.</td></tr>
+    <tr><td><code>robots.go</code></td><td>99</td><td>Lettura e applicazione di <code>robots.txt</code>.</td></tr>
+    <tr><td><code>roots.go</code></td><td>26</td><td>Certificati radice incorporati (<code>cacerts.pem</code>) come riserva.</td></tr>
+    <tr><td><code>progress.go</code></td><td>487</td><td>Barre per file e per segmento, riepilogo, contatori (fatti, falliti, già presenti), formattazione.</td></tr>
+    <tr><td><code>util.go</code></td><td>139</td><td><code>parseSize</code>, <code>humanBytes</code>, limitatore di banda, <code>meterReader</code>.</td></tr>
+    <tr><td><code>help.go</code></td><td>297</td><td>Contenuto della guida (fonte unica), pagina di manuale ANSI, scelta TUI/pager/testo.</td></tr>
+    <tr><td><code>tui.go</code></td><td>427</td><td>Guida a schede in modalità raw.</td></tr>
+    <tr><td><code>term_linux.go</code></td><td>69</td><td>Dimensione del terminale, raw mode (ioctl termios), segnali.</td></tr>
+    <tr><td><code>term_other.go</code></td><td>27</td><td>Stessi simboli per gli altri sistemi: la TUI non c'è, si ripiega sul testo.</td></tr>
+    <tr><td><code>engine_test.go</code></td><td>455</td><td>Motore con server locali: segmenti, ripresa, tentativi senza duplicati, timeout, crawl, filtri, requisiti.</td></tr>
+    <tr><td><code>crawl_test.go</code></td><td>125</td><td>Estrazione dei link (base, srcset, CSS, HTML malformato), <code>convertLinks</code>.</td></tr>
+    <tr><td><code>filter_test.go</code></td><td>129</td><td>Tipi, dimensioni, estensioni, domini, limiti.</td></tr>
+    <tr><td><code>retry_test.go</code></td><td>100</td><td><code>Retry-After</code>, errori ritentabili, backoff e tetto.</td></tr>
+    <tr><td><code>main_test.go</code></td><td>105</td><td>Il programma intero in un sottoprocesso: stati di uscita, messaggi, <code>-qe</code>/<code>-qa</code>.</td></tr>
+  </tbody>
+</table>
+
+<!-- ===================================================================== -->
+<h2 id="repository">Repository e strumenti</h2>
+
+<p class="chapter-intro">Com'è organizzato il repository, come si costruisce, si prova e si pubblica.</p>
+
+<h3 id="struttura" data-index="struttura del repository">Struttura</h3>
+<table>
+  <thead><tr><th>Percorso</th><th>Contenuto</th></tr></thead>
+  <tbody>
+    <tr><td><code>*.go</code>, <code>go.mod</code>, <code>go.sum</code></td><td>Il programma e i test (modulo <code>scrap</code>).</td></tr>
+    <tr><td><code>cacerts.pem</code></td><td>Certificati radice di Mozilla (distribuiti da curl.se), incorporati nel binario da <code>roots.go</code>.</td></tr>
+    <tr><td><code>scrap</code></td><td>L'eseguibile Linux x86-64 statico, <strong>registrato nel repository</strong> perché un <code>git clone</code> basti anche senza Go. Si rigenera con <code>make</code> e si registra insieme a ogni modifica del codice.</td></tr>
+    <tr><td><code>docs/</code></td><td>I due manuali HTML, <code>index.html</code>, <code>decisioni-e-storia.md</code>, <code>assets/</code> (stile, script, Mermaid). Pubblicati con GitHub Pages dalla cartella <code>/docs</code>.</td></tr>
+    <tr><td><code>tools/setup-dev.sh</code></td><td>Controlla e installa i pacchetti, imposta l'identità git locale.</td></tr>
+    <tr><td><code>tools/backup.sh</code></td><td>Bundle git completo (tutti i rami, tag, storia).</td></tr>
+    <tr><td><code>tools/check-docs.py</code></td><td>Controlli dei manuali (vedi <a href="#controlli-doc">Controlli della documentazione</a>).</td></tr>
+    <tr><td><code>.github/workflows/ci.yml</code></td><td>Test a ogni push; release con i binari a ogni tag <code>v*</code>.</td></tr>
+    <tr><td><code>CLAUDE.md</code></td><td>Accordi di lavoro e decisioni da non riaprire.</td></tr>
+    <tr><td><code>NOTICE.md</code></td><td>Copyright e licenze dei componenti di terzi.</td></tr>
+  </tbody>
+</table>
+<div class="callout danger"><span class="callout-title">File personali</span>
+<p>I file di cookie (<code>cookies.txt</code>, <code>cj.txt</code>, <code>*.cookies</code>) contengono sessioni aperte e
+sono in <code>.gitignore</code>, come i download (<code>*.part</code>, <code>*.iso</code>, <code>*.bin</code>…) e
+<code>dist/</code>. Il repository è pubblico: mai <code>git add -A</code> senza guardare.</p></div>
+
+<h3 id="build" data-index="make;build">Build</h3>
+<pre class="terminal">$ tools/setup-dev.sh --install
+$ make
+$ make test
+$ make dist</pre>
+<table>
+  <thead><tr><th>Comando</th><th>Effetto</th></tr></thead>
+  <tbody>
+    <tr><td><code>make</code></td><td><code>GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o scrap .</code>: rigenera l'eseguibile registrato, statico e senza simboli, sempre per x86-64 anche se costruito su ARM.</td></tr>
+    <tr><td><code>make test</code></td><td><code>go vet</code>, <code>gofmt -l</code>, <code>tools/check-docs.py</code>, poi <code>go test -race -count=1</code>. Il <code>-race</code> richiede cgo, quindi <code>gcc</code>.</td></tr>
+    <tr><td><code>make dist</code></td><td>Nove binari in <code>dist/</code> (Linux amd64, arm64, armv7, armv6, 386, riscv64; macOS amd64 e arm64; Windows amd64) più <code>SHA256SUMS</code>.</td></tr>
+    <tr><td><code>make install</code></td><td>Ricostruisce e copia <code>scrap</code> in <code>/usr/local/bin</code>.</td></tr>
+    <tr><td><code>make clean</code></td><td>Elimina <code>dist/</code> (<code>./scrap</code> resta: fa parte del repository).</td></tr>
+  </tbody>
+</table>
+<p><code>go.mod</code> chiede Go 1.23 (serve almeno la 1.22 per <code>math/rand/v2</code>); su Debian 13 il pacchetto
+<code>golang-go</code> è la 1.24. Con un Go più vecchio ma almeno 1.21, la direttiva fa scaricare in automatico il
+toolchain giusto. La prima build scarica <code>golang.org/x/net</code> nella cache dei moduli.</p>
+
+<h3 id="ci-release" data-index="CI;release;tag">CI e release</h3>
+<p>La CI (<code>.github/workflows/ci.yml</code>) gira a ogni push su <code>main</code> e a ogni pull request: installa
+Go dalla versione di <code>go.mod</code>, esegue <code>make test</code> e <code>make dist</code>, prova il binario
+Linux e conserva i binari. Su un tag <code>v*</code> un secondo job crea la release GitHub con i nove binari e
+<code>SHA256SUMS</code>; il messaggio del tag annotato diventa la descrizione.</p>
+<ol class="steps">
+  <li>Aggiorna la versione in <code>main.go</code> (<code>appVersion</code>), <code>README.md</code>,
+      <code>docs/index.html</code> e nei due manuali; <code>make</code> per rigenerare <code>./scrap</code>.
+      <code>make test</code> controlla che tutto coincida.</li>
+  <li><code>git tag -a v1.2.0 -m "scrap 1.2.0: …novità…"</code></li>
+  <li><code>git push origin main v1.2.0</code></li>
+</ol>
+
+<h3 id="recupero-tecnico" data-index="recupero;bundle">Recupero e backup</h3>
+<p>Il repository è progettato perché un <code>git clone</code> basti a riavere tutto. Il programma pronto è già dentro
+(<code>./scrap</code>); per ricostruirlo e verificarlo:</p>
+<pre class="terminal">$ git clone https://github.com/nic-fio/SCRAPER.git
+$ cd SCRAPER &amp;&amp; tools/setup-dev.sh --install &amp;&amp; make test</pre>
+<p><code>tools/setup-dev.sh</code> imposta anche l'identità git locale (<code>nic-fio</code> con l'indirizzo noreply di
+GitHub), che non viene clonata perché sta in <code>.git/config</code>. <code>tools/backup.sh DIR</code> crea
+<code>scrap-AAAA-MM-GG.bundle</code>, verificato con <code>git bundle verify</code>, e avvisa se ci sono modifiche non
+registrate o commit non ancora spinti su GitHub.</p>
+
+<!-- ===================================================================== -->
+<h2 id="architettura">Architettura</h2>
+
+<p class="chapter-intro">I componenti, come si parlano e cosa succede durante un'esecuzione.</p>
+
+<h3 id="componenti">Componenti</h3>
+<pre class="mermaid">
+flowchart TB
+  MAIN["main.go&lt;br/&gt;opzioni e avvio"]
+  ENG["crawl.go&lt;br/&gt;Engine"]
+  DL["download.go&lt;br/&gt;download"]
+  RT["retry.go&lt;br/&gt;tentativi"]
+  FL["filter.go&lt;br/&gt;filtri"]
+  RB["robots.go"]
+  HC["httpclient.go&lt;br/&gt;client, auth"]
+  JAR[("cookies.go&lt;br/&gt;cookie jar")]
+  PRG["progress.go&lt;br/&gt;barre"]
+  RL["util.go&lt;br/&gt;limite di banda"]
+  HLP["help.go + tui.go&lt;br/&gt;guida"]
+  MAIN --> ENG
+  MAIN --> HLP
+  MAIN --> JAR
+  ENG --> DL
+  ENG --> FL
+  ENG --> RB
+  DL --> RT
+  DL --> HC
+  ENG --> HC
+  HC --> JAR
+  DL --> PRG
+  DL --> RL
+</pre>
+
+<h3 id="avvio" data-index="main;Config">Avvio</h3>
+<p><code>main</code> (<code>main.go:112</code>) procede così:</p>
+<ol class="steps">
+  <li><code>wantsHelp</code> intercetta <code>-h</code>, <code>-help</code>, <code>--help</code>, <code>help</code> o
+      l'assenza di argomenti <em>prima</em> di <code>flag.Parse</code>, e mostra la guida.</li>
+  <li>Definisce le opzioni su un <code>flag.FlagSet</code> con <code>ExitOnError</code>: un'opzione sconosciuta stampa
+      la guida testuale ed esce con 2. Gli alias corto/lungo sono due flag che puntano alla stessa variabile
+      (<code>intVar</code>, <code>strVar</code>, <code>boolVar</code>).</li>
+  <li>Converte e controlla i valori (<code>main.go:194</code>): dimensioni con <code>parseSize</code>, livello,
+      numeri non negativi, <code>--auth</code>, regex compilate. Ogni errore passa da <code>badArg</code>: messaggio con
+      il nome dell'opzione e stato 2.</li>
+  <li>Deriva le modalità: <code>--page-requisites</code> senza <code>-r</code> diventa un crawl di profondità 0;
+      <code>-m</code> implica <code>-r</code> e profondità infinita (se <code>-l</code> non è stato dato, o vale 5); in
+      ricorsivo <code>MirrorDirs</code> è sempre vero. Poi le regole di <code>-o</code> (<code>main.go:278</code>).</li>
+  <li>Crea jar (caricando <code>--load-cookies</code>), client, esegue <code>formLogin</code> se c'è
+      <code>--login-url</code> (errore &rarr; stato 1), avvia <code>Progress</code> e l'<code>Engine</code>.</li>
+  <li>Dopo <code>engine.Run</code>: riepilogo, <code>--save-cookies</code>, e stato 1 se
+      <code>prog.Failed() &gt; 0</code> (<code>main.go:337</code>).</li>
+</ol>
+
+<h3 id="esecuzione" data-index="Engine;Run">Un'esecuzione</h3>
+<pre class="mermaid">
+sequenceDiagram
+  participant M as main
+  participant E as Engine
+  participant W as goroutine (max -j attive)
+  participant S as Server
+  M->>E: Run(seed)
+  E->>E: valida i seed, restringe agli host dei seed
+  alt senza -r
+    E->>W: enqueueDownload(seed)
+    W->>S: sonda Range 0-0, poi download
+  else con -r / -m
+    E->>W: enqueue(seed, 0)
+    W->>S: sonda
+    alt pagina HTML e depth ≤ livello
+      W->>S: GET pagina
+      W->>E: enqueue(link, depth+1) per ogni link
+    else file
+      W->>S: download
+    end
+  end
+  E->>E: wg.Wait(), poi convertLinks se richiesto
+  E-->>M: fine
+</pre>
+<p>L'<code>Engine</code> (<code>crawl.go:20</code>) lancia <strong>un goroutine per ogni URL accodato</strong>; il
+semaforo <code>sem</code> (capacità <code>-j</code>) limita quanti lavorano insieme e il <code>WaitGroup</code> aspetta
+anche quelli accodati durante il crawl. <code>visited</code> (protetta da <code>vmu</code>) evita di accodare due
+volte lo stesso URL (senza frammento). <code>stop()</code> alza un flag atomico che blocca i nuovi accodamenti quando
+un limite è raggiunto.</p>
+
+<h3 id="output" data-index="stdout;stderr;logf;errf">Dove va l'output</h3>
+<p>Barre, messaggi e riepilogo vanno tutti su <strong>stderr</strong>; su stdout va solo la guida.
+<code>errf</code> (<code>main.go:97</code>) scrive <code>scrap: …</code>; <code>logf</code> scrive solo con
+<code>-v</code>. Entrambi passano da <code>gProg.Log</code> quando le barre sono attive, così il messaggio compare sopra
+l'area viva senza rovinarla. <code>-qa</code> imposta <code>gQuietAll</code>, che zittisce entrambi.</p>
+
+<!-- ===================================================================== -->
+<h2 id="download">Il motore di download</h2>
+
+<p class="chapter-intro">Sonda, flusso singolo e segmentato, ripresa, tentativi, timeout e limite di banda.</p>
+
+<h3 id="sonda" data-index="probe;sonda;Range">La sonda</h3>
+<p><code>probe</code> (<code>download.go:29</code>) fa una GET con <code>Range: bytes=0-0</code>, dentro
+<code>withRetry</code>:</p>
+<table>
+  <thead><tr><th>Risposta</th><th>Significato</th></tr></thead>
+  <tbody>
+    <tr><td><code>206</code></td><td>Range supportati; dimensione dal totale di <code>Content-Range</code>.</td></tr>
+    <tr><td><code>200</code></td><td>Range ignorati; dimensione da <code>Content-Length</code> (o &minus;1).</td></tr>
+    <tr><td><code>416</code></td><td>File vuoto.</td></tr>
+    <tr><td>altro</td><td><code>httpStatusError</code> con il codice e l'eventuale <code>Retry-After</code>.</td></tr>
+  </tbody>
+</table>
+<p>Legge e scarta al massimo 64 KB del corpo, così la connessione torna riutilizzabile. Raccoglie anche
+<code>Content-Type</code> (per i filtri e per riconoscere le pagine HTML) e l'URL finale dopo i redirect.</p>
+
+<h3 id="downloadfile" data-index="downloadFile">downloadFile</h3>
+<p><code>downloadFile</code> (<code>download.go:73</code>) coordina un file:</p>
+<ol class="steps">
+  <li>Se la destinazione esiste, il file è completo (durante il download si chiama <code>.part</code>): salta,
+      conta come &laquo;già presente&raquo; ed esce con successo. Vale anche con <code>-c</code>.</li>
+  <li>Sonda (se non già fatta dal crawler), poi i filtri su dimensione e tipo. Un file scartato non è un errore.</li>
+  <li><code>reserveFile</code>: se <code>--max-files</code> è esaurito restituisce <code>errQuota</code>, che ferma il
+      motore senza contare un fallimento.</li>
+  <li>Sceglie <code>segmented</code> se il server accetta i range, il file è di almeno <code>--min-split</code> e
+      <code>-s &gt; 1</code>; altrimenti <code>singleStream</code>. Entrambi scrivono su <code>DEST.part</code> e
+      rinominano solo a successo.</li>
+</ol>
+
+<h3 id="segmentato" data-index="segmented;segMeta;.part.scrap;makeSegs;fetchRange">Download segmentato</h3>
+<p><code>segmented</code> (<code>download.go:148</code>) divide il file in <code>-s</code> segmenti uguali
+(<code>makeSegs</code>; l'ultimo prende il resto), prealloca il <code>.part</code> con <code>Truncate</code> e lancia
+un goroutine per segmento. Ogni segmento ha i propri tentativi e riparte da <code>start + done</code>;
+<code>fetchRange</code> scrive con <code>WriteAt</code> e aggiorna i contatori <em>dopo</em> la scrittura, quindi lo
+stato salvato non è mai avanti rispetto ai dati. Ogni 1,5 secondi, e in caso di errore, lo stato va nel file
+accanto:</p>
+<pre class="code" data-lang="text" data-title="NOME.part.scrap">
+{"url":"https://…","size":5000000,"done":[242176,331528,516704,909200]}
+</pre>
+<p>Con <code>-c</code> lo stato viene ricaricato solo se dimensione e numero di segmenti coincidono (altrimenti si
+riparte da zero). A successo il file di stato viene cancellato e il <code>.part</code> rinominato.</p>
+<p><code>fetchRange</code> pretende una risposta <code>206</code>: un <code>200</code> conterrebbe il file intero, che
+scritto a partire da <code>from</code> lo corromperebbe. In quel caso restituisce l'errore &laquo;il server ha ignorato
+la richiesta di un pezzo del file&raquo; (<code>TestSegmentIgnoringRangeIsRejected</code>).</p>
+
+<h3 id="flusso-singolo" data-index="singleStream;WriteAt">Flusso singolo</h3>
+<p><code>singleStream</code> (<code>download.go:283</code>) tiene in <code>pos</code> il numero di byte realmente
+scritti:</p>
+<ul>
+  <li><strong>Partenza</strong>: con <code>-c</code> e range supportati riparte dalla dimensione del <code>.part</code>
+      esistente (se minore del totale); altrimenti tronca a zero.</li>
+  <li><strong>A ogni tentativo</strong> chiede <code>Range: bytes=pos-</code>. Se il server risponde
+      <code>200</code> invece di <code>206</code>, manda il file dall'inizio: si tronca e si riparte da zero.</li>
+  <li><strong>Scrittura posizionale</strong> con <code>WriteAt(buf, pos)</code>: mai in coda, quindi un tentativo
+      ripetuto non può duplicare dati.</li>
+  <li><strong>Controllo di fine</strong>: se la dimensione è nota e lo stream finisce prima, l'errore
+      <code>download incompleto: X/Y byte</code> fa scattare un nuovo tentativo.</li>
+</ul>
+<div class="callout warning"><span class="callout-title">Storia</span>
+<p>Fino alla 1.0 il file era aperto in accodamento e ogni tentativo ripartiva dall'offset iniziale: dopo una caduta
+di connessione i dati venivano scritti due volte e il file corrotto veniva rinominato come completo.
+<code>TestSingleStreamRetryResumesWithoutDuplicates</code> e
+<code>TestSingleStreamRetryWithoutRangesRestarts</code> falliscono sul codice 1.0 (1.200.000 byte invece di
+800.000) e proteggono la correzione.</p></div>
+
+<h3 id="tentativi" data-index="withRetry;backoff;isRetryable;Retry-After;--retries">Tentativi</h3>
+<p><code>withRetry</code> (<code>retry.go:79</code>) esegue la funzione fino a <code>1 + --retries</code> volte:</p>
+<ul>
+  <li><strong>Si ferma subito</strong> su <code>errQuota</code> e sugli errori permanenti: <code>isRetryable</code>
+      considera permanenti i 4xx tranne 408 e 429. I 5xx e gli errori di rete sono transitori.</li>
+  <li><strong>Attesa</strong> (<code>backoff</code>): se il server ha mandato <code>Retry-After</code> (secondi o data
+      HTTP) lo rispetta; altrimenti <code>--retry-wait</code> raddoppiato a ogni tentativo. Tetto
+      <code>maxBackoff</code> = 60 s, jitter &plusmn;20% per non far ripartire insieme tutti i segmenti.</li>
+</ul>
+
+<h3 id="timeout" data-index="--timeout;idleBody;NewClient;ResponseHeaderTimeout">Timeout</h3>
+<p><code>--timeout</code> <strong>non limita la durata di una richiesta</strong>: il client (<code>NewClient</code>,
+<code>httpclient.go:30</code>) non ha <code>http.Client.Timeout</code>. Il valore vale per:</p>
+<ul>
+  <li>la connessione (<code>net.Dialer.Timeout</code>), l'handshake TLS e l'attesa delle intestazioni di risposta
+      (<code>ResponseHeaderTimeout</code>);</li>
+  <li>il trasferimento fermo: <code>Client.Do</code> avvolge ogni corpo in <code>idleBody</code>, un timer azzerato a
+      ogni lettura che, se scade, annulla il contesto della richiesta. La lettura fallisce con
+      <code>nessun dato ricevuto per …</code>, un errore transitorio: il tentativo successivo riparte dal punto giusto.</li>
+</ul>
+<p>Con <code>--timeout 0</code> tutti questi limiti sono disattivati. Fino alla 1.0 il valore era il timeout totale del
+client: un segmento più lungo di 60 secondi falliva a ogni tentativo (<code>TestTimeoutDoesNotLimitTotalDuration</code>,
+<code>TestStalledTransferIsRetried</code>).</p>
+
+<h3 id="banda-tecnica" data-index="RateLimiter;meterReader;parseSize">Limite di banda</h3>
+<p><code>RateLimiter</code> (<code>util.go:75</code>) è un token bucket globale, condiviso da tutti i download, con
+capacità pari a un secondo di banda. <code>meterReader</code> avvolge ogni corpo di risposta e chiama
+<code>Take(n)</code> dopo ogni lettura. <code>Take</code> <em>prenota</em> i token anche andando in negativo e dorme
+in proporzione al deficit: così più segmenti in attesa sommano l'attesa invece di moltiplicare la banda (era un bug
+della prima versione, vedi <a href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisioni-e-storia.md">la
+storia</a>). <code>parseSize</code> accetta un numero, anche decimale, con suffisso <code>k/M/G/T</code> (potenze di
+1024) ed eventuale <code>B</code>.</p>
+
+<!-- ===================================================================== -->
+<h2 id="crawler">Il crawler</h2>
+
+<p class="chapter-intro">Come vengono esplorate le pagine, estratti i link e salvati i file.</p>
+
+<h3 id="accodamento" data-index="enqueue;process;crawlHTML;requisiti">Accodamento ed esplorazione</h3>
+<p><code>enqueue(url, depth, req)</code> (<code>crawl.go:130</code>) toglie il frammento, deduplica su
+<code>visited</code>, applica <code>allowCrawl</code> e <code>robots.txt</code> e lancia il goroutine.
+<code>process</code> fa la sonda e decide:</p>
+<ul>
+  <li><strong>HTML</strong> (<code>text/html</code> o <code>application/xhtml</code>), <code>depth ≤ livello</code>, non
+      requisito &rarr; <code>crawlHTML</code>;</li>
+  <li><strong>altrimenti</strong> &rarr; filtro di estensione e <code>downloadFile</code> (una pagina HTML scaricata
+      così, per esempio un iframe come requisito, prende comunque l'estensione <code>.html</code>).</li>
+</ul>
+<p><code>crawlHTML</code> (<code>crawl.go:192</code>) scarica la pagina intera in memoria (massimo 32 MB), calcola la
+destinazione dall'URL finale e, se un'altra pagina è già finita nello stesso file (<code>pagesSeen</code>: per esempio
+<code>/</code> e <code>/index.html</code>), si ferma. Altrimenti salva la pagina se passa <code>allowSaveHTML</code>,
+estrae i link e accoda: tutti a <code>depth+1</code> se <code>depth &lt; livello</code>; all'ultimo livello, con
+<code>--page-requisites</code>, solo i requisiti con <code>req=true</code>, che ignorano profondità e
+<code>--no-parent</code> e non vengono esplorati.</p>
+<p>Ogni pagina costa quindi due richieste: la sonda e la GET completa.</p>
+
+<h3 id="estrazione-link" data-index="extractPageLinks;extractLinks;isRequisiteRel;srcset;base href">Estrazione dei link</h3>
+<p><code>extractPageLinks</code> (<code>crawl.go:301</code>) usa il tokenizer di <code>golang.org/x/net/html</code>,
+tollerante all'HTML malformato. Raccoglie <code>href</code>, <code>src</code>, <code>poster</code>, le voci di
+<code>srcset</code>, gli <code>url(…)</code> negli attributi <code>style</code> e nei blocchi <code>&lt;style&gt;</code>;
+rispetta <code>&lt;base href&gt;</code>; scarta <code>#…</code>, <code>javascript:</code>, <code>mailto:</code>,
+<code>data:</code>, <code>tel:</code> e tutto ciò che non è http/https. Il testo di <code>&lt;script&gt;</code> non
+viene letto (niente falsi positivi da stringhe JavaScript).</p>
+<p>Restituisce due elenchi: tutti i link e i <strong>requisiti</strong>. Sono link di navigazione solo gli
+<code>href</code> di <code>&lt;a&gt;</code>, <code>&lt;area&gt;</code> e dei <code>&lt;link&gt;</code> che non sono
+risorse (<code>isRequisiteRel</code>: <code>stylesheet</code>, <code>icon</code>, <code>apple-touch-icon</code>,
+<code>preload</code>, <code>modulepreload</code>, <code>manifest</code>); tutto il resto è requisito.</p>
+
+<h3 id="mappa-percorsi" data-index="localPath;reUnsafe;MirrorDirs">Da URL a file</h3>
+<p><code>localPath</code> (<code>crawl.go:434</code>):</p>
+<ol class="steps">
+  <li>parte dal percorso decodificato; vuoto o finale <code>/</code> &rarr; <code>index.html</code>;</li>
+  <li>la query si aggiunge dopo <code>@</code> (<code>/scarica?id=4</code> &rarr; <code>scarica@id_4</code>);</li>
+  <li>per le pagine HTML aggiunge <code>.html</code> se l'estensione non è <code>.html</code>, <code>.htm</code> o
+      <code>.xhtml</code>;</li>
+  <li>sostituisce con <code>_</code> ogni carattere fuori da <code>[A-Za-z0-9._-/]</code> (<code>reUnsafe</code>):
+      niente spazi, accenti o caratteri speciali nei nomi, e nessun <code>..</code> può uscire dalla cartella perché
+      il percorso è ripulito da <code>filepath.Join</code>;</li>
+  <li>con <code>MirrorDirs</code> (<code>-r</code>/<code>-m</code>) il file va in <code>DIR/host/percorso</code>
+      (l'host senza porta); altrimenti in <code>DIR/</code> con il solo nome.</li>
+</ol>
+
+<h3 id="convert-links" data-index="convertLinks;--convert-links;reAbsURL">Conversione dei link</h3>
+<p><code>convertLinks</code> (<code>crawl.go:471</code>) gira alla fine, sulle pagine salvate. Con
+<code>reAbsURL</code> trova gli indirizzi assoluti interi (fino a spazio, virgolette, parentesi o
+<code>&lt;&gt;</code>), toglie il frammento, cerca l'indirizzo (anche con le entità <code>&amp;amp;</code> decodificate)
+tra quelli scaricati e lo sostituisce con il percorso relativo, rimettendo il frammento. Gli indirizzi non scaricati
+restano assoluti; i link già relativi restano com'erano, perché le cartelle ricalcano il sito.</p>
+<p>Fino alla 1.0 la sostituzione era testuale, con <code>strings.ReplaceAll</code> in ordine casuale: l'indirizzo della
+home poteva alterare quelli più lunghi (<code>https://sito/img/a.png</code> &rarr; <code>index.htmlimg/a.png</code>).
+Lo protegge <code>TestConvertLinksWholeURLsOnly</code>.</p>
+
+<h3 id="robots-tecnico" data-index="robots.txt;allowedByRobots;fetchRobots">robots.txt</h3>
+<p><code>allowedByRobots</code> (<code>robots.go:21</code>) scarica <code>/robots.txt</code> una volta per
+schema+host e lo tiene in memoria. Considera solo il gruppo <code>User-agent: *</code>; le regole
+<code>Allow</code>/<code>Disallow</code> sono prefissi, vince la più lunga e a parità vince <code>Allow</code>. Un
+<code>robots.txt</code> assente, non 200 o irraggiungibile vuol dire &laquo;tutto permesso&raquo;. Vale solo per
+<code>enqueue</code>, cioè in modalità ricorsiva.</p>
+
+<!-- ===================================================================== -->
+<h2 id="filtri-tecnico">I filtri</h2>
+
+<p class="chapter-intro">Quale filtro si applica in quale momento.</p>
+<table>
+  <thead><tr><th>Momento</th><th>Funzione</th><th>Filtri</th></tr></thead>
+  <tbody>
+    <tr><td>Accodamento (solo crawl)</td><td><code>allowCrawl</code> (<code>filter.go:62</code>)</td>
+        <td>profondità, <code>--domains</code> / host dei seed, <code>--exclude-domains</code>, <code>--no-parent</code>,
+        <code>--reject-re</code>, <code>--accept-re</code>.</td></tr>
+    <tr><td>Risorsa non esplorata</td><td><code>allowDownloadExt</code></td><td><code>-A</code>, <code>-R</code>
+        (estensione del percorso).</td></tr>
+    <tr><td>Dopo la sonda</td><td><code>allowSize</code>, <code>allowType</code></td><td><code>--min-size</code>,
+        <code>--max-size</code> (dimensione ignota: passa), <code>--types</code>.</td></tr>
+    <tr><td>Salvataggio di una pagina</td><td><code>allowSaveHTML</code></td><td>dimensione, tipo, estensione (assente
+        = <code>html</code>). La pagina viene comunque esplorata.</td></tr>
+    <tr><td>Prima di scrivere</td><td><code>reserveFile</code></td><td><code>--max-files</code> (conta anche le
+        pagine salvate).</td></tr>
+    <tr><td>Durante la scrittura</td><td><code>addBytes</code>, <code>quotaExceeded</code></td><td><code>--quota</code>:
+        superata, il download in corso restituisce <code>errQuota</code>.</td></tr>
+  </tbody>
+</table>
+<p>Se non si danno <code>--span-hosts</code> né <code>--domains</code>, <code>Run</code> copia gli host dei seed in
+<code>domains</code>: il crawl resta sugli host di partenza e sui loro sottodomini (<code>hostInList</code> accetta
+<code>host == d</code> o il suffisso <code>.d</code>). Nel download diretto, senza <code>-r</code>, si applicano solo i
+filtri dal terzo in giù.</p>
+
+<!-- ===================================================================== -->
+<h2 id="http">HTTP, autenticazione e cookie</h2>
+
+<p class="chapter-intro">Come vengono costruite le richieste, gestiti gli accessi e conservate le sessioni.</p>
+
+<h3 id="richieste" data-index="newRequest;User-Agent;defaultUserAgent">Le richieste</h3>
+<p><code>newRequest</code> (<code>httpclient.go:50</code>) imposta, in quest'ordine: User-Agent, <code>Referer</code>,
+le intestazioni di <code>-H</code>, <code>Authorization: Bearer</code>, <code>Cookie</code> di <code>--cookie</code>,
+e l'autenticazione Basic preventiva (se c'è <code>--user</code>, non c'è un token e <code>--auth</code> non è
+<code>digest</code>). Lo User-Agent normale è <code>scrap/1.1 (+https://github.com/nic-fio/SCRAPER)</code>
+(<code>defaultUserAgent</code>, <code>main.go:29</code>): onesto e contattabile, come fanno i bot ben educati. Il client
+segue i redirect (fino a 10, comportamento di Go), usa i proxy delle variabili d'ambiente e HTTP/2 quando il server lo
+offre.</p>
+
+<h3 id="digest" data-index="Digest;digestHeader;parseChallenge">Digest</h3>
+<p><code>Client.Do</code> riconosce un <code>401</code> con <code>WWW-Authenticate: Digest</code>: ricostruisce la
+richiesta (<code>cloneForRetry</code>, conservando il <code>Range</code>) e la ripete con l'intestazione calcolata da
+<code>digestHeader</code> (MD5 o MD5-sess, <code>qop=auth</code>, contatore <code>nc</code> atomico, cnonce casuale).
+<code>parseChallenge</code> gestisce le virgole tra virgolette.</p>
+
+<h3 id="login-tecnico" data-index="formLogin;--login-url">Login da modulo</h3>
+<p><code>formLogin</code> (<code>httpclient.go:253</code>) invia <code>--login-data</code> così com'è, in POST
+<code>application/x-www-form-urlencoded</code>, con User-Agent e intestazioni <code>-H</code>. I cookie di risposta (e
+dei redirect) finiscono nel jar condiviso. Un codice <code>≥ 400</code> è un errore fatale. Non legge prima la pagina
+di login, quindi non conosce eventuali token anti-CSRF.</p>
+
+<h3 id="jar" data-index="Jar;cookies.txt;Netscape">Cookie jar</h3>
+<p><code>Jar</code> (<code>cookies.go:17</code>) implementa <code>http.CookieJar</code>: dominio (con o senza
+<em>host-only</em>), percorso, <code>Secure</code>, scadenza (<code>Max-Age</code> ha la precedenza su
+<code>Expires</code>; un cookie scaduto cancella quello esistente). <code>Load</code> e <code>Save</code> usano il
+formato Netscape a 7 colonne separate da tabulazioni; le righe <code>#HttpOnly_</code> vengono lette.</p>
+
+<h3 id="tls" data-index="TLS;cacerts.pem;roots.go;SetFallbackRoots;--insecure">Certificati</h3>
+<p><code>roots.go</code> incorpora <code>cacerts.pem</code> con <code>go:embed</code> e lo registra con
+<code>x509.SetFallbackRoots</code>: Go lo usa <strong>solo se il sistema non ha un proprio archivio di
+certificati</strong> (container minimi, sistemi senza <code>ca-certificates</code>). Sui sistemi normali restano
+prioritari i certificati del sistema, che ricevono gli aggiornamenti. Per aggiornare il pacchetto:
+<code>curl -fsSL -o cacerts.pem https://curl.se/ca/cacert.pem</code>. <code>--insecure</code> imposta
+<code>InsecureSkipVerify</code> per tutto il client.</p>
+
+<!-- ===================================================================== -->
+<h2 id="avanzamento">Barre di avanzamento</h2>
+
+<p class="chapter-intro">Come vengono disegnate le barre senza rovinarle con i messaggi.</p>
+
+<p><code>Progress</code> (<code>progress.go</code>) tiene l'elenco dei file in corso e i contatori atomici: byte,
+file fatti, indirizzi falliti (<code>fail</code>, chiamato da <code>handleErr</code> e per i seed non validi), file già
+presenti (<code>skipped</code>). Se stderr è un terminale e l'uscita non è silenziata, <code>run</code> ridisegna ogni
+120 ms l'<em>area viva</em>: una riga per file (al massimo <code>maxBars</code> = 6), la riga dei segmenti
+(<code>▰▱</code>) per i download a più connessioni, un separatore e il piede &laquo;attivi · fatti · falliti · byte ·
+velocità&raquo;. Per ridisegnare risale di <code>liveLines-1</code> righe (<code>ESC[nA</code>), cancella fino in fondo
+(<code>ESC[J</code>) e riscrive.</p>
+<p>La velocità è una media mobile esponenziale (0,6 &times; precedente + 0,4 &times; istantanea). La barra usa gli
+ottavi di blocco Unicode per la frazione. Senza terminale non ci sono barre: i messaggi sono righe semplici. Con
+<code>-qe</code>/<code>-qa</code> <code>Progress</code> è <em>quiet</em>: niente barre, righe <code>✓</code> né
+riepilogo; restano solo i messaggi di <code>errf</code> (che <code>-qa</code> zittisce).</p>
+<p><code>finish</code> scrive il riepilogo: <code>✓</code> (o <code>✗</code> se qualcosa è fallito), file, falliti, già
+presenti, byte, durata, media.</p>
+
+<!-- ===================================================================== -->
+<h2 id="guida">Guida e interfaccia</h2>
+
+<p class="chapter-intro">Una sola fonte per il testo della guida, tre modi di mostrarla.</p>
+
+<p>Il contenuto della guida sta in <code>help.go</code>: <code>helpSections</code> (le opzioni per sezione),
+<code>helpExamples</code>, <code>descrizione</code>. Da lì nascono sia la pagina di manuale (<code>buildHelp</code>,
+con colori ANSI) sia le schede della TUI (<code>buildTabs</code>). <code>tools/check-docs.py</code> verifica che ogni
+opzione definita in <code>main.go</code> compaia in <code>helpSections</code> e nel manuale utente.</p>
+<p><code>displayHelp</code> sceglie:</p>
+<ol class="steps">
+  <li>stdin o stdout non sono terminali &rarr; testo semplice senza colori su stdout;</li>
+  <li>altrimenti la TUI (<code>runTUI</code>); se fallisce (terminale sotto 44&times;10, o sistema diverso da Linux)
+      &rarr;</li>
+  <li>pagina a colori nel pager: <code>$PAGER</code>, oppure <code>less -R -F -X</code>, oppure <code>more</code>,
+      oppure stampata così com'è.</li>
+</ol>
+<p>La TUI (<code>tui.go</code>) usa lo schermo alternativo (<code>ESC[?1049h</code>), nasconde il cursore e mette stdin in
+raw mode con ioctl <code>TCGETS</code>/<code>TCSETS</code> (<code>term_linux.go</code>). Un goroutine legge i byte e
+<code>parseKeys</code> li traduce <em>tutti</em> in eventi (una lettura può contenere più tasti o una sequenza di
+escape; leggerne solo il primo bloccava la TUI in una versione iniziale). Un <code>ESC</code> isolato vale come uscita.
+<code>SIGWINCH</code> ridisegna alla nuova dimensione; <code>SIGTERM</code>/<code>SIGHUP</code> escono ripristinando il
+terminale. Il progetto gemello <a href="https://github.com/nic-fio/HOSTER">hoster</a> ha ripreso queste parti.</p>
+
+<!-- ===================================================================== -->
+<h2 id="test">Test</h2>
+
+<p class="chapter-intro">Cosa è coperto, come si esegue, e i controlli della documentazione.</p>
+
+<h3 id="suite" data-index="go test;-race">La suite</h3>
+<p>32 test ermetici: nessuna rete reale. I server sono <code>httptest</code> locali che imitano file con e senza
+range, cadute di connessione a metà, server bloccati, server lenti, siti con pagine, <code>robots.txt</code> e link
+rotti. Girano con <code>-race</code> perché segmenti, crawl e barre sono concorrenti.</p>
+<table>
+  <thead><tr><th>Area</th><th>Test principali</th></tr></thead>
+  <tbody>
+    <tr><td>Download</td><td><code>TestSegmentedDownloadIdentical</code>, <code>TestSegmentedResumeDownloadsOnlyMissing</code> (il server manda solo i byte mancanti), <code>TestSingleStreamWithoutRanges</code>, <code>TestSingleStreamRetryResumesWithoutDuplicates</code>, <code>TestSingleStreamRetryWithoutRangesRestarts</code>, <code>TestSegmentIgnoringRangeIsRejected</code>, <code>TestExistingFileSkippedEvenWithContinue</code></td></tr>
+    <tr><td>Tentativi e timeout</td><td><code>TestPermanentErrorIsNotRetried</code>, <code>TestTimeoutDoesNotLimitTotalDuration</code>, <code>TestStalledTransferIsRetried</code>, <code>TestParseRetryAfter</code>, <code>TestIsRetryable</code>, <code>TestBackoff*</code></td></tr>
+    <tr><td>Crawl</td><td><code>TestCrawlFiltersAndRobots</code>, <code>TestPageRequisitesAtLastLevel</code>, <code>TestMirrorSavesSamePageOnce</code>, <code>TestFailuresAreCounted</code>, <code>TestExtractLinks*</code>, <code>TestExtractPageLinksRequisites</code>, <code>TestConvertLinksWholeURLsOnly</code></td></tr>
+    <tr><td>Filtri</td><td><code>TestAllowType</code>, <code>TestAllowSize</code>, <code>TestAllowDownloadExt</code>, <code>TestHostInList</code>, <code>TestUrlExt</code>, <code>TestReserveFileAndQuota</code></td></tr>
+    <tr><td>Programma intero</td><td><code>TestExitCodesAndMessages</code> (11 casi: riuscito, 404, regex, dimensioni, livello, <code>-j 0</code>, <code>--auth</code>, <code>-o</code>, URL non valido, <code>-qa</code>), <code>TestQuietErrShowsOnlyErrors</code></td></tr>
+  </tbody>
+</table>
+
+<h3 id="test-main" data-index="TestMain;SCRAP_TEST_MAIN;runScrap">Provare il programma intero</h3>
+<p><code>main_test.go</code> usa lo stesso eseguibile di test come programma: <code>TestMain</code>, se trova
+<code>SCRAP_TEST_MAIN=1</code>, sostituisce <code>os.Args</code> con gli argomenti dopo <code>--</code> e chiama
+<code>main()</code>. <code>runScrap</code> lancia il sottoprocesso e restituisce stato di uscita e uscita. Così si
+verificano <code>os.Exit</code>, messaggi e silenzio senza compilare un binario a parte.</p>
+
+<h3 id="controlli-doc" data-index="check-docs.py">Controlli della documentazione</h3>
+<p><code>tools/check-docs.py</code>, eseguito da <code>make test</code> e quindi dalla CI, fallisce se:</p>
+<ul>
+  <li>un'opzione di <code>helpSections</code> non ha la sua voce nel riferimento del manuale utente
+      (<code>data-index</code> di un <code>&lt;dt&gt;</code>), o il manuale documenta un'opzione che non esiste;</li>
+  <li>un'opzione definita in <code>main.go</code> non compare nella guida integrata;</li>
+  <li>un file <code>.go</code> manca dalla <a href="#mappa-file">mappa dei file</a>, o il numero di righe indicato si
+      scosta di più del 10% da quello vero;</li>
+  <li>l'eseguibile <code>./scrap</code> manca, non è un ELF x86-64 o non contiene la versione di <code>main.go</code>
+      (segno che non è stato rigenerato dopo un cambio di versione);</li>
+  <li>la versione di <code>main.go</code> non coincide con quella di <code>README.md</code>,
+      <code>docs/index.html</code> e dei due manuali;</li>
+  <li>un link interno <code>#ancora</code> dei manuali punta a un id che non esiste.</li>
+</ul>
+
+<!-- ===================================================================== -->
+<h2 id="convenzioni">Convenzioni</h2>
+
+<p class="chapter-intro">Come si scrive codice e testo in questo progetto.</p>
+<ul>
+  <li><strong>Tutto in italiano</strong>: messaggi, commenti, documentazione. I testi rivolti all'utente sono semplici,
+      senza gergo tecnico.</li>
+  <li><strong>Formato</strong>: <code>gofmt</code>; <code>go vet</code> pulito.</li>
+  <li><strong>Nessuna nuova dipendenza</strong> senza una ragione forte: il binario unico è una scelta di progetto.</li>
+  <li><strong>Ogni correzione ha il suo test</strong> di regressione, con un server locale, e il test deve fallire sul
+      codice prima della correzione.</li>
+  <li><strong>Mai scrivere in coda</strong> in un file di download: sempre <code>WriteAt</code> a una posizione nota.</li>
+  <li><strong>Opzioni sbagliate &rarr; <code>badArg</code></strong> (stato 2, nome dell'opzione nel messaggio), mai
+      <code>MustCompile</code> o valori ignorati in silenzio.</li>
+  <li><strong>La documentazione si aggiorna insieme al codice</strong>: nuova opzione &rarr; riga in
+      <code>helpSections</code> e voce nel riferimento del manuale utente; nuovo file &rarr; riga nella mappa.</li>
+</ul>
+
+<!-- ===================================================================== -->
+<h2 id="limiti">Limiti noti e punti aperti</h2>
+
+<p class="chapter-intro">Comportamenti noti, da correggere o da tenere presenti, e idee per il futuro.</p>
+
+<h3 id="limiti-noti" data-index="limiti noti;bug">Limiti noti</h3>
+<table>
+  <thead><tr><th>Dove</th><th>Comportamento</th><th>Effetto</th></tr></thead>
+  <tbody>
+    <tr><td><code>download.go:148</code></td><td>Stato di ripresa e dati non vengono forzati su disco
+        (<code>fsync</code>).</td>
+        <td>Dopo uno spegnimento improvviso lo stato può dire più byte di quelli arrivati sul disco: il file ripreso
+        avrebbe dei buchi. Con <kbd>Ctrl</kbd>+<kbd>C</kbd> non succede.</td></tr>
+    <tr><td><code>crawl.go:130</code></td><td>Un goroutine per ogni URL accodato; <code>visited</code> non si svuota mai.</td>
+        <td>Su siti enormi (centinaia di migliaia di URL) cresce la memoria.</td></tr>
+    <tr><td><code>crawl.go:192</code></td><td>Pagine lette interamente in memoria, al massimo 32 MB; due richieste per pagina.</td>
+        <td>Una pagina più grande viene troncata; un crawl costa il doppio delle richieste strettamente necessarie.</td></tr>
+    <tr><td><code>crawl.go:434</code></td><td>Il nome della cartella è l'host senza porta; i caratteri non ASCII diventano <code>_</code>.</td>
+        <td>Due server sullo stesso host con porte diverse finiscono nella stessa cartella; nomi diversi possono
+        coincidere dopo la sostituzione (il secondo viene saltato come già presente).</td></tr>
+    <tr><td><code>robots.go</code></td><td>Solo il gruppo <code>User-agent: *</code>, solo prefissi.</td>
+        <td>Non gestisce i caratteri jolly <code>*</code> e <code>$</code> né <code>Crawl-delay</code>.</td></tr>
+    <tr><td><code>httpclient.go:253</code></td><td>Il login da modulo non legge prima la pagina.</td>
+        <td>I siti con token anti-CSRF rifiutano il login: servono i cookie esportati dal browser.</td></tr>
+    <tr><td><code>cookies.go:44</code></td><td>Il dominio dichiarato da un cookie non viene confrontato con l'host che lo imposta.</td>
+        <td>Un sito potrebbe impostare cookie per un altro dominio durante un crawl con <code>--span-hosts</code>.</td></tr>
+    <tr><td><code>filter.go:172</code></td><td>La quota è controllata dopo ogni scrittura, da download paralleli.</td>
+        <td>Il totale può superare <code>--quota</code> di qualche blocco per ogni download attivo.</td></tr>
+    <tr><td><code>main.go</code></td><td>Password e token passano come argomenti.</td>
+        <td>Restano nella cronologia della shell e sono visibili in <code>ps</code> durante l'esecuzione.</td></tr>
+    <tr><td>macOS, Windows</td><td>Binari costruiti dalla CI ma mai provati su quei sistemi; niente TUI.</td>
+        <td>La guida è solo testuale; il resto dovrebbe funzionare perché è Go standard.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="corretti-1-1" data-index="1.1;correzioni">Corretti nella 1.1</h3>
+<p>Per confronto con la 1.0 (ogni punto ha il suo test): flusso singolo che duplicava i dati a ogni nuovo tentativo;
+<code>--timeout</code> come durata massima della richiesta; segmento servito con <code>200</code> scritto nel punto
+sbagliato; <code>-c</code> che riscaricava i file completi; stato 0 anche con download falliti; crash con una regex
+sbagliata; dimensioni e livello sbagliati ignorati; <code>-j 0</code> che mandava in crash il programma (stallo di tutti i goroutine); <code>-qe</code> e
+<code>-qa</code> non silenziosi; <code>-o</code> con più indirizzi; <code>--page-requisites</code> senza effetto; pagina
+salvata due volte nel mirror; <code>--convert-links</code> che alterava gli indirizzi più lunghi; seed non valido
+segnalato due volte dopo un minuto di tentativi inutili.</p>
+
+<h3 id="idee" data-index="idee;TODO">Idee per il futuro</h3>
+<ul>
+  <li><code>fsync</code> di dati e stato a intervalli, per una ripresa sicura anche dopo uno spegnimento.</li>
+  <li>Una coda con un numero fisso di goroutine al posto di un goroutine per URL.</li>
+  <li>Caratteri jolly e <code>Crawl-delay</code> in <code>robots.txt</code>.</li>
+  <li>Login da modulo che legge prima la pagina e riprende i campi nascosti.</li>
+  <li>Proxy SOCKS, deduplicazione per impronta, statistiche in JSON (candidati v2 del diario di sviluppo).</li>
+</ul>
+
+<!-- ===================================================================== -->
+<h2 id="glossario" class="unnumbered">Glossario</h2>
+<dl class="defs">
+  <dt id="g-range" data-kind="termine" data-index="Range (termine)">Richiesta Range</dt>
+  <dd>Richiesta HTTP di una parte del file (<code>bytes=da-a</code>); risposta 206 se supportata.</dd>
+  <dt id="g-seed" data-kind="termine" data-index="seed">Seed</dt>
+  <dd>Un indirizzo di partenza, dato sulla riga di comando o con <code>-i</code>.</dd>
+  <dt id="g-requisito" data-kind="termine" data-index="requisito (termine)">Requisito di pagina</dt>
+  <dd>Una risorsa che serve a mostrare una pagina: immagine, foglio di stile, script, icona, iframe.</dd>
+  <dt id="g-backoff" data-kind="termine" data-index="backoff (termine);jitter">Backoff con jitter</dt>
+  <dd>Attesa tra i tentativi che cresce a ogni fallimento, con una piccola variazione casuale perché più connessioni
+      non ripartano tutte nello stesso istante.</dd>
+  <dt id="g-bucket" data-kind="termine" data-index="token bucket">Token bucket</dt>
+  <dd>Limitatore di banda: un secchio di &laquo;gettoni&raquo; (byte) che si riempie alla velocità consentita; ogni
+      lettura ne consuma.</dd>
+  <dt id="g-netscape" data-kind="termine" data-index="formato Netscape">Formato Netscape</dt>
+  <dd>Il formato testuale dei file <code>cookies.txt</code>, esportabile dai browser.</dd>
+  <dt id="g-bundle" data-kind="termine" data-index="git bundle">Git bundle</dt>
+  <dd>Un file che contiene un repository git completo, clonabile senza rete.</dd>
+</dl>
+
+<!-- ===================================================================== -->
+<h2 id="index" class="unnumbered">Indice analitico</h2>
+<div id="index-list"></div>
+
+<footer class="doc-footer">
+  scrap — Manuale tecnico, per la versione 1.1. Vedi anche il <a href="manuale-utente.html">manuale utente</a> e
+  <a href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisioni-e-storia.md">decisioni e storia del progetto</a>.
+  <br>Copyright (c) 2026 nic-fio. Tutti i diritti riservati.
+</footer>
+
+</main>
+</div>
+<script src="assets/vendor/mermaid.min.js"></script>
+<script src="assets/docs.js"></script>
+</body>
+</html>

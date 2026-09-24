@@ -20,12 +20,12 @@ type Jar struct {
 }
 
 type cookieEntry struct {
-	Name, Value   string
-	Domain, Path  string
-	Expires       time.Time
-	Secure        bool
-	HostOnly      bool
-	HasExpiry     bool
+	Name, Value  string
+	Domain, Path string
+	Expires      time.Time
+	Secure       bool
+	HostOnly     bool
+	HasExpiry    bool
 }
 
 func NewJar() *Jar { return &Jar{} }

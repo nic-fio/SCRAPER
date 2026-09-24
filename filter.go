@@ -57,9 +57,10 @@ func urlExt(u *url.URL) string {
 	return strings.TrimPrefix(e, ".")
 }
 
-// allowCrawl: l'URL può essere visitato/seguito per il crawling?
-func (f *Filters) allowCrawl(u *url.URL, seed *url.URL, cfg *Config, depth int) bool {
-	if depth > cfg.Level {
+// allowCrawl: l'URL può essere visitato/seguito per il crawling? I requisiti
+// di pagina (req, da --page-requisites) ignorano profondità e --no-parent.
+func (f *Filters) allowCrawl(u *url.URL, seed *url.URL, cfg *Config, depth int, req bool) bool {
+	if depth > cfg.Level && !req {
 		return false
 	}
 	host := strings.ToLower(u.Hostname())
@@ -69,7 +70,7 @@ func (f *Filters) allowCrawl(u *url.URL, seed *url.URL, cfg *Config, depth int) 
 	if len(f.exDomains) > 0 && hostInList(host, f.exDomains) {
 		return false
 	}
-	if cfg.NoParent && seed != nil && !strings.HasPrefix(u.Path, dirOf(seed.Path)) {
+	if cfg.NoParent && !req && seed != nil && !strings.HasPrefix(u.Path, dirOf(seed.Path)) {
 		return false
 	}
 	if f.rejectRe != nil && f.rejectRe.MatchString(u.String()) {

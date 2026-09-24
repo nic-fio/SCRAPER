@@ -1,5 +1,4 @@
-# Binario compilato
-/scrap
+# ./scrap invece È registrato: il repository contiene l'eseguibile pronto.
 
 # Binari multi-architettura prodotti da `make dist`
 /dist/
@@ -8,8 +7,13 @@
 *.part
 *.part.scrap
 
-# Cookie jar
+# Cookie: possono contenere sessioni aperte, mai nel repository pubblico
 cookies.txt
+*.cookies
+cj.txt
+
+# Backup prodotti da tools/backup.sh
+*.bundle
 
 # Sistema
 .DS_Store

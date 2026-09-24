@@ -13,8 +13,8 @@ type styled struct {
 	n int
 }
 
-func plain(s string) styled  { return styled{s, utf8.RuneCountInString(s)} }
-func blankLine() styled      { return styled{"", 0} }
+func plain(s string) styled { return styled{s, utf8.RuneCountInString(s)} }
+func blankLine() styled     { return styled{"", 0} }
 
 // ---- modello dei contenuti (schede) ----
 

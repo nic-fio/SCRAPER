@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>scrap — Documentazione</title>
+<meta name="description" content="Documentazione di scrap, il coltellino svizzero del download: manuale utente, manuale tecnico, decisioni e storia.">
+<link rel="stylesheet" href="assets/docs.css">
+<style>
+  .home { max-width: 58rem; margin: 0 auto; padding: 3rem clamp(1rem, 4vw, 3rem) 4rem; }
+  .home .cards { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+  .home .card { display: block; color: var(--text); text-decoration: none; }
+  .home .card:hover { border-color: var(--accent); text-decoration: none; }
+  .home .card h4 { color: var(--accent); }
+  .home pre { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="home">
+  <header class="titlepage">
+    <div class="kicker">Documentazione</div>
+    <h1>scrap</h1>
+    <p class="lead">Il coltellino svizzero del download: un unico eseguibile che scarica file a più connessioni con
+    ripresa, copia siti interi seguendo i link e sceglie con tanti filtri cosa tenere.</p>
+    <div class="meta"><span><b>Versione</b> 1.1</span><span><b>Sistema</b> Linux, macOS, Windows</span></div>
+  </header>
+
+  <div class="cards">
+    <a class="card" href="manuale-utente.html"><div class="icon">&gt;_</div><h4>Manuale utente</h4>
+      <p>Installare e usare scrap: scaricare file, copiare siti, filtri, siti con accesso riservato, problemi e
+      soluzioni, recupero dopo un guasto, tutte le opzioni.</p></a>
+    <a class="card" href="manuale-tecnico.html"><div class="icon">{ }</div><h4>Manuale tecnico</h4>
+      <p>Architettura, motore di download multi-segmento, crawler, filtri, HTTP e cookie, test, limiti noti.</p></a>
+    <a class="card" href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisioni-e-storia.md"><div class="icon">&#8801;</div><h4>Decisioni e storia</h4>
+      <p>Perché scrap è fatto così: le scelte di progetto e la storia.</p></a>
+    <a class="card" href="https://github.com/nic-fio/SCRAPER"><div class="icon">&lt;/&gt;</div><h4>Codice sorgente</h4>
+      <p>Il repository su GitHub, con le release del programma pronto.</p></a>
+  </div>
+
+  <footer class="doc-footer">Copyright (c) 2026 nic-fio. Tutti i diritti riservati.</footer>
+</div>
+</body>
+</html>

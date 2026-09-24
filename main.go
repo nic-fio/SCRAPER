@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -17,8 +18,8 @@ var gQuietAll bool
 // Identità dell'applicazione, centralizzata in un solo punto.
 const (
 	appName    = "scrap"
-	appVersion = "1.0"
-	appURL     = "https://github.com/nicfio/Scraper"
+	appVersion = "1.1"
+	appURL     = "https://github.com/nic-fio/SCRAPER"
 )
 
 // defaultUserAgent identifica onestamente lo scraper con la convenzione usata
@@ -190,22 +191,65 @@ func main() {
 	cfg.Headers = headers
 	gQuietAll = cfg.QuietAll
 
-	// conversioni
-	var err error
-	if cfg.MinSplit, err = parseSize(minSplitS); err != nil {
-		fatal(err)
+	// conversioni e controlli: un valore sbagliato ferma il programma con
+	// stato 2 e un messaggio che dice quale opzione correggere.
+	size := func(opt, v string) int64 {
+		n, err := parseSize(v)
+		if err != nil || n < 0 {
+			badArg("--%s: dimensione non valida %q (esempi: 500k, 10M, 1.5G)", opt, v)
+		}
+		return n
 	}
-	if cfg.Rate, err = parseSize(rateS); err != nil {
-		fatal(err)
-	}
-	minSize, _ := parseSize(minSizeS)
-	maxSize, _ := parseSize(maxSizeS)
-	quota, _ := parseSize(quotaS)
+	cfg.MinSplit = size("min-split", minSplitS)
+	cfg.Rate = size("rate", rateS)
+	minSize := size("min-size", minSizeS)
+	maxSize := size("max-size", maxSizeS)
+	quota := size("quota", quotaS)
 
 	if strings.EqualFold(levelS, "inf") {
 		cfg.Level = 1 << 30
+	} else if n, err := strconv.Atoi(levelS); err == nil && n >= 0 {
+		cfg.Level = n
 	} else {
-		fmt.Sscanf(levelS, "%d", &cfg.Level)
+		badArg("-l/--level: valore non valido %q (un numero da 0 in su, oppure inf)", levelS)
+	}
+	switch {
+	case cfg.Split < 1:
+		badArg("-s/--split: serve almeno 1 connessione (dato %d)", cfg.Split)
+	case cfg.Jobs < 1:
+		badArg("-j/--jobs: serve almeno 1 file alla volta (dato %d)", cfg.Jobs)
+	case cfg.Retries < 0:
+		badArg("--retries: il numero di tentativi non può essere negativo (dato %d)", cfg.Retries)
+	case cfg.RetryWait < 0:
+		badArg("--retry-wait: l'attesa non può essere negativa (dato %d)", cfg.RetryWait)
+	case cfg.Timeout < 0:
+		badArg("--timeout: non può essere negativo (dato %d; 0 = nessun limite)", cfg.Timeout)
+	case maxFiles < 0:
+		badArg("--max-files: non può essere negativo (dato %d)", maxFiles)
+	}
+	switch cfg.AuthMode {
+	case "auto", "basic", "digest":
+	default:
+		badArg("--auth: modo sconosciuto %q (auto, basic o digest)", cfg.AuthMode)
+	}
+	compile := func(opt, expr string) *regexp.Regexp {
+		if expr == "" {
+			return nil
+		}
+		re, err := regexp.Compile(expr)
+		if err != nil {
+			badArg("--%s: espressione regolare non valida: %v", opt, err)
+		}
+		return re
+	}
+	acceptRx := compile("accept-re", acceptRe)
+	rejectRx := compile("reject-re", rejectRe)
+
+	// --page-requisites da solo (senza -r/-m): la pagina indicata più le sue
+	// risorse, come se fosse un crawl di profondità 0.
+	if cfg.PageRequisites && !cfg.Recursive && !cfg.Mirror {
+		cfg.Recursive = true
+		cfg.Level = 0
 	}
 	if cfg.Mirror {
 		cfg.Recursive = true
@@ -231,24 +275,28 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
+	if cfg.Output != "" {
+		if cfg.Recursive {
+			badArg("-o non si usa con -r, -m o --page-requisites: per scegliere la cartella usa -d")
+		}
+		if len(seeds) > 1 {
+			badArg("-o vale per un solo indirizzo (ne sono stati dati %d): per scegliere la cartella usa -d", len(seeds))
+		}
+	}
 
 	// filtri
 	filters := &Filters{
-		accept:   extsToSet(accept),
-		reject:   extsToSet(reject),
-		domains:  csvList(domains),
+		accept:    extsToSet(accept),
+		reject:    extsToSet(reject),
+		acceptRe:  acceptRx,
+		rejectRe:  rejectRx,
+		domains:   csvList(domains),
 		exDomains: csvList(exDomains),
-		types:    csvList(types),
-		minSize:  minSize,
-		maxSize:  maxSize,
-		maxFiles: int64(maxFiles),
-		quota:    quota,
-	}
-	if acceptRe != "" {
-		filters.acceptRe = regexp.MustCompile(acceptRe)
-	}
-	if rejectRe != "" {
-		filters.rejectRe = regexp.MustCompile(rejectRe)
+		types:     csvList(types),
+		minSize:   minSize,
+		maxSize:   maxSize,
+		maxFiles:  int64(maxFiles),
+		quota:     quota,
 	}
 
 	// cookie jar
@@ -282,7 +330,12 @@ func main() {
 	if cfg.SaveCookies != "" {
 		if err := jar.Save(cfg.SaveCookies); err != nil {
 			errf("impossibile salvare i cookie: %v", err)
+			os.Exit(1)
 		}
+	}
+	// stato 1 se almeno un indirizzo non è stato scaricato
+	if prog.Failed() > 0 {
+		os.Exit(1)
 	}
 }
 
@@ -321,6 +374,12 @@ func readURLFile(path string) ([]string, error) {
 func fatal(err error) {
 	errf("%v", err)
 	os.Exit(1)
+}
+
+// badArg segnala un'opzione con un valore sbagliato ed esce con stato 2.
+func badArg(format string, args ...any) {
+	errf(format, args...)
+	os.Exit(2)
 }
 
 // wantsHelp riconosce le richieste d'aiuto (e il caso "nessun argomento").

@@ -71,8 +71,11 @@ func (e *Engine) probe(rawurl string) (*probeInfo, error) {
 
 // downloadFile salva una risorsa su dest, usando multi-segmento se possibile.
 func (e *Engine) downloadFile(rawurl, dest string, info *probeInfo) error {
-	if _, err := os.Stat(dest); err == nil && !e.cfg.Continue {
+	// Un file già completo non si riscarica, nemmeno con -c: durante il
+	// download il file si chiama DEST.part, quindi DEST esiste solo se finito.
+	if _, err := os.Stat(dest); err == nil {
 		logf(e.cfg, "esiste già, salto: %s", dest)
+		e.prog.skipped()
 		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
@@ -242,8 +245,12 @@ func (e *Engine) fetchRange(rawurl string, f *os.File, from, end int64, cb func(
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusPartialContent && resp.StatusCode != http.StatusOK {
+	if resp.StatusCode >= 400 {
 		return statusError(resp)
+	}
+	if resp.StatusCode != http.StatusPartialContent {
+		// Un 200 conterrebbe il file intero: scriverlo da "from" lo corromperebbe.
+		return fmt.Errorf("il server ha ignorato la richiesta di un pezzo del file (HTTP %d)", resp.StatusCode)
 	}
 	r := &meterReader{r: resp.Body, lim: e.rl, prog: e.prog}
 	buf := make([]byte, 64*1024)
@@ -269,28 +276,35 @@ func (e *Engine) fetchRange(rawurl string, f *os.File, from, end int64, cb func(
 	}
 }
 
+// singleStream scarica con una sola connessione. Ogni tentativo riparte dal
+// punto realmente scritto su disco (pos) e scrive in posizione con WriteAt:
+// mai in coda, così un tentativo ripetuto non può duplicare dati. Se il server
+// non accetta i Range, un nuovo tentativo ricomincia da zero.
 func (e *Engine) singleStream(rawurl, dest, part string, info *probeInfo, fp *fileProg) error {
-	var off int64
-	flags := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
-	if e.cfg.Continue {
-		if st, err := os.Stat(part); err == nil && info.ranges && info.size > st.Size() {
-			off = st.Size()
-			flags = os.O_WRONLY | os.O_APPEND
-			logf(e.cfg, "resume da %s: %s", humanBytes(off), dest)
+	var pos int64
+	if e.cfg.Continue && info.ranges {
+		if st, err := os.Stat(part); err == nil && (info.size < 0 || st.Size() < info.size) {
+			pos = st.Size()
+			logf(e.cfg, "resume da %s: %s", humanBytes(pos), dest)
 		}
 	}
-	f, err := os.OpenFile(part, flags, 0o644)
+	f, err := os.OpenFile(part, os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
 		return err
 	}
+	if err := f.Truncate(pos); err != nil {
+		f.Close()
+		return err
+	}
+	atomic.StoreInt64(&fp.done, pos)
 
 	err = e.withRetry(func() error {
 		req, err := e.client.newRequest("GET", rawurl)
 		if err != nil {
 			return err
 		}
-		if off > 0 {
-			req.Header.Set("Range", fmt.Sprintf("bytes=%d-", off))
+		if pos > 0 && info.ranges {
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-", pos))
 		}
 		resp, err := e.client.Do(req)
 		if err != nil {
@@ -300,14 +314,23 @@ func (e *Engine) singleStream(rawurl, dest, part string, info *probeInfo, fp *fi
 		if resp.StatusCode >= 400 {
 			return statusError(resp)
 		}
+		if pos > 0 && resp.StatusCode != http.StatusPartialContent {
+			// il server manda il file dall'inizio: si riparte da zero
+			pos = 0
+			atomic.StoreInt64(&fp.done, 0)
+			if err := f.Truncate(0); err != nil {
+				return err
+			}
+		}
 		r := &meterReader{r: resp.Body, lim: e.rl, prog: e.prog}
 		buf := make([]byte, 64*1024)
 		for {
 			nr, er := r.Read(buf)
 			if nr > 0 {
-				if _, ew := f.Write(buf[:nr]); ew != nil {
+				if _, ew := f.WriteAt(buf[:nr], pos); ew != nil {
 					return ew
 				}
+				pos += int64(nr)
 				atomic.AddInt64(&fp.done, int64(nr))
 				e.filters.addBytes(int64(nr))
 				if e.filters.quotaExceeded() {
@@ -315,12 +338,16 @@ func (e *Engine) singleStream(rawurl, dest, part string, info *probeInfo, fp *fi
 				}
 			}
 			if er == io.EOF {
-				return nil
+				break
 			}
 			if er != nil {
 				return er
 			}
 		}
+		if info.size >= 0 && pos < info.size {
+			return fmt.Errorf("download incompleto: %d/%d byte", pos, info.size)
+		}
+		return nil
 	})
 	f.Close()
 	if err != nil {
@@ -328,4 +355,3 @@ func (e *Engine) singleStream(rawurl, dest, part string, info *probeInfo, fp *fi
 	}
 	return os.Rename(part, dest)
 }
-

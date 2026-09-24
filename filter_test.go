@@ -20,11 +20,11 @@ func TestAllowType(t *testing.T) {
 		ct    string
 		want  bool
 	}{
-		{nil, "text/html", true},                              // nessun filtro: tutto passa
-		{[]string{"image/*"}, "image/png", true},              // wildcard
-		{[]string{"image/*"}, "text/html", false},             // wildcard non combacia
+		{nil, "text/html", true},                                  // nessun filtro: tutto passa
+		{[]string{"image/*"}, "image/png", true},                  // wildcard
+		{[]string{"image/*"}, "text/html", false},                 // wildcard non combacia
 		{[]string{"text/html"}, "text/html; charset=utf-8", true}, // parametri ignorati
-		{[]string{"pdf"}, "application/pdf", true},            // sottostringa
+		{[]string{"pdf"}, "application/pdf", true},                // sottostringa
 		{[]string{"text/html"}, "application/json", false},
 	}
 	for _, c := range cases {
@@ -80,9 +80,9 @@ func TestHostInList(t *testing.T) {
 		want bool
 	}{
 		{"example.com", true},
-		{"www.example.com", true},  // sottodominio
-		{"a.b.example.com", true},  // sottodominio profondo
-		{"notexample.com", false},  // suffisso senza il punto: no
+		{"www.example.com", true}, // sottodominio
+		{"a.b.example.com", true}, // sottodominio profondo
+		{"notexample.com", false}, // suffisso senza il punto: no
 		{"example.org", false},
 	}
 	for _, c := range cases {
@@ -94,11 +94,11 @@ func TestHostInList(t *testing.T) {
 
 func TestUrlExt(t *testing.T) {
 	cases := map[string]string{
-		"http://x/a.JPG":      "jpg", // minuscolo
-		"http://x/a.tar.gz":   "gz",
-		"http://x/dir/":       "",
-		"http://x/noext":      "",
-		"http://x/a.PdF?q=1":  "pdf",
+		"http://x/a.JPG":     "jpg", // minuscolo
+		"http://x/a.tar.gz":  "gz",
+		"http://x/dir/":      "",
+		"http://x/noext":     "",
+		"http://x/a.PdF?q=1": "pdf",
 	}
 	for in, want := range cases {
 		if got := urlExt(mustURL(t, in)); got != want {

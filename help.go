@@ -17,6 +17,7 @@ const (
 	aCyan  = "\033[36m"
 	aGreen = "\033[32m"
 	aYel   = "\033[33m"
+	aRed   = "\033[31m"
 )
 
 type helpRow struct{ flag, desc string }
@@ -31,13 +32,13 @@ var helpSections = []helpSection{
 		{"-s, --split N", "Scarica ogni file in N segmenti paralleli (default 4)."},
 		{"-j, --jobs N", "Numero di file scaricati contemporaneamente (default 4)."},
 		{"--min-split SIZE", "Non segmentare file più piccoli di SIZE (default 1M)."},
-		{"-o, --output FILE", "Salva con questo nome (solo con un singolo URL)."},
+		{"-o, --output FILE", "Salva con questo nome. Vale per un solo URL e non con -r/-m: per scegliere la cartella usa -d."},
 		{"-d, --dir DIR", "Cartella di destinazione (default la corrente)."},
-		{"-c, --continue", "Riprende un download interrotto da dove si era fermato."},
+		{"-c, --continue", "Riprende i download interrotti (file .part) da dove si erano fermati. I file già completi vengono sempre saltati, con o senza -c."},
 		{"--retries N", "Tentativi per ciascun segmento prima di rinunciare (default 5). Ci si ferma subito sugli errori HTTP permanenti (es. 401/403/404)."},
 		{"--retry-wait SEC", "Attesa iniziale del backoff esponenziale tra i tentativi (default 2): raddoppia a ogni ritentativo (tetto 60s, con jitter) e rispetta l'header Retry-After del server sui 429/503."},
 		{"--rate SIZE", "Limita la banda complessiva (es. 2M = 2 MiB/s)."},
-		{"--timeout SEC", "Timeout di connessione e lettura (default 60)."},
+		{"--timeout SEC", "Attesa massima per collegarsi, per la risposta del server e, durante un download, senza ricevere dati (default 60; 0 = nessun limite). Non limita la durata di un download."},
 	}},
 	{"Crawling", []helpRow{
 		{"-r, --recursive", "Segue ricorsivamente i link delle pagine HTML."},
@@ -45,7 +46,7 @@ var helpSections = []helpSection{
 		{"-m, --mirror", "Mirror completo: equivale a -r -l inf più la struttura di cartelle."},
 		{"--no-parent", "Non risale alle cartelle superiori a quella di partenza."},
 		{"--span-hosts", "Permette di seguire link verso host diversi da quello iniziale."},
-		{"--page-requisites", "Scarica le risorse necessarie a mostrare la pagina."},
+		{"--page-requisites", "Scarica anche le risorse che servono a mostrare le pagine (immagini, fogli di stile, script), pure oltre la profondità massima. Senza -r: la pagina indicata e le sue risorse."},
 		{"--convert-links", "Riscrive i link verso i file scaricati per la consultazione offline."},
 		{"--robots=false", "Ignora robots.txt (di default viene rispettato)."},
 	}},
@@ -56,8 +57,8 @@ var helpSections = []helpSection{
 		{"--reject-re REGEX", "Scarta gli URL che corrispondono alla regex."},
 		{"--domains LISTA", "Limita il crawl agli host indicati."},
 		{"--exclude-domains LISTA", "Esclude gli host indicati."},
-		{"--min-size SIZE", "Salta i file più piccoli di SIZE (verificato via HEAD)."},
-		{"--max-size SIZE", "Salta i file più grandi di SIZE (verificato via HEAD)."},
+		{"--min-size SIZE", "Salta i file più piccoli di SIZE (controllato prima di scaricare)."},
+		{"--max-size SIZE", "Salta i file più grandi di SIZE (controllato prima di scaricare)."},
 		{"--types LISTA", "Content-type ammessi (es. image/*,application/pdf)."},
 		{"--max-files N", "Si ferma dopo aver scaricato N file."},
 		{"--quota SIZE", "Si ferma dopo aver scaricato SIZE byte in totale."},
@@ -221,8 +222,8 @@ func buildHelp(color bool, width int) string {
 	tp("HTTP_PROXY, HTTPS_PROXY, NO_PROXY", "Proxy HTTP/HTTPS e relative eccezioni.")
 
 	hdr("Stato di uscita")
-	tp("0", "Completato con successo.")
-	tp("1", "Errore durante l'esecuzione.")
+	tp("0", "Tutto scaricato (i file già presenti contano come riusciti).")
+	tp("1", "Almeno un indirizzo non è stato scaricato, oppure un errore ha fermato il programma.")
 	tp("2", "Argomenti o opzioni non validi.")
 
 	hdr("Vedere anche")

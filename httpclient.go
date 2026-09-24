@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"crypto/md5"
 	"crypto/tls"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -20,18 +22,26 @@ type Client struct {
 	ncCount uint64 // contatore per il cnonce digest
 }
 
+// NewClient prepara il client HTTP. --timeout NON limita la durata di una
+// richiesta (un file di molti gigabyte deve poter durare quanto serve): vale
+// per la connessione, l'handshake TLS, l'attesa delle intestazioni di risposta
+// e, durante il trasferimento, per il tempo massimo senza ricevere byte (vedi
+// idleBody). Con 0 questi limiti sono disattivati.
 func NewClient(cfg *Config, jar *Jar) *Client {
+	t := time.Duration(cfg.Timeout) * time.Second
 	tr := &http.Transport{
-		Proxy:               http.ProxyFromEnvironment,
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: cfg.Insecure},
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: cfg.Split + cfg.Jobs,
-		ForceAttemptHTTP2:   true,
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           (&net.Dialer{Timeout: t, KeepAlive: 30 * time.Second}).DialContext,
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: cfg.Insecure},
+		TLSHandshakeTimeout:   t,
+		ResponseHeaderTimeout: t,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   cfg.Split + cfg.Jobs,
+		ForceAttemptHTTP2:     true,
 	}
 	hc := &http.Client{
 		Transport: tr,
 		Jar:       jar,
-		Timeout:   time.Duration(cfg.Timeout) * time.Second,
 	}
 	return &Client{hc: hc, cfg: cfg, jar: jar}
 }
@@ -65,8 +75,22 @@ func (c *Client) newRequest(method, rawurl string) (*http.Request, error) {
 	return req, nil
 }
 
-// Do esegue la richiesta gestendo eventuale challenge Digest sul 401.
+// Do esegue la richiesta gestendo eventuale challenge Digest sul 401. Il
+// corpo della risposta è sorvegliato da idleBody: se per --timeout secondi non
+// arriva nessun byte, la richiesta viene interrotta con un errore chiaro (che
+// withRetry tratta come transitorio).
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
+	ctx, cancel := context.WithCancel(req.Context())
+	resp, err := c.do(req.WithContext(ctx))
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	resp.Body = newIdleBody(resp.Body, time.Duration(c.cfg.Timeout)*time.Second, cancel)
+	return resp, nil
+}
+
+func (c *Client) do(req *http.Request) (*http.Response, error) {
 	resp, err := c.hc.Do(req)
 	if err != nil {
 		return nil, err
@@ -80,11 +104,54 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 			if err != nil {
 				return nil, err
 			}
+			req2 = req2.WithContext(req.Context())
 			req2.Header.Set("Authorization", c.digestHeader(wa, req2.Method, req2.URL))
 			return c.hc.Do(req2)
 		}
 	}
 	return resp, nil
+}
+
+// idleBody interrompe la richiesta (tramite cancel) quando per un intervallo
+// d non arriva nessun byte: protegge dai server che smettono di mandare dati
+// senza chiudere la connessione, senza limitare la durata totale.
+type idleBody struct {
+	rc     io.ReadCloser
+	d      time.Duration
+	timer  *time.Timer
+	fired  atomic.Bool
+	cancel context.CancelFunc
+}
+
+func newIdleBody(rc io.ReadCloser, d time.Duration, cancel context.CancelFunc) io.ReadCloser {
+	b := &idleBody{rc: rc, d: d, cancel: cancel}
+	if d > 0 {
+		b.timer = time.AfterFunc(d, func() {
+			b.fired.Store(true)
+			cancel()
+		})
+	}
+	return b
+}
+
+func (b *idleBody) Read(p []byte) (int, error) {
+	n, err := b.rc.Read(p)
+	if n > 0 && b.timer != nil {
+		b.timer.Reset(b.d)
+	}
+	if err != nil && err != io.EOF && b.fired.Load() {
+		err = fmt.Errorf("nessun dato ricevuto per %s", b.d)
+	}
+	return n, err
+}
+
+func (b *idleBody) Close() error {
+	if b.timer != nil {
+		b.timer.Stop()
+	}
+	err := b.rc.Close()
+	b.cancel()
+	return err
 }
 
 func (c *Client) cloneForRetry(req *http.Request) (*http.Request, error) {
@@ -199,7 +266,7 @@ func (c *Client) formLogin() error {
 			req.Header.Set(strings.TrimSpace(h[:i]), strings.TrimSpace(h[i+1:]))
 		}
 	}
-	resp, err := c.hc.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return err
 	}

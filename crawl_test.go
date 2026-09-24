@@ -2,6 +2,8 @@ package main
 
 import (
 	"net/url"
+	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 )
@@ -96,6 +98,28 @@ func TestExtractLinksMalformed(t *testing.T) {
 	} {
 		if !got[w] {
 			t.Errorf("link atteso mancante da HTML malformato: %s", w)
+		}
+	}
+}
+
+func TestConvertLinksWholeURLsOnly(t *testing.T) {
+	for i := 0; i < 30; i++ { // l'ordine delle mappe è casuale: ripeti
+		dir := t.TempDir()
+		e := testEngine(t, func(c *Config) { c.Dir = dir })
+		root := filepath.Join(dir, "x.test")
+		page := filepath.Join(root, "index.html")
+		os.MkdirAll(filepath.Join(root, "img"), 0o755)
+		os.WriteFile(page, []byte(`<a href="http://x.test/">h</a><img src="http://x.test/img/a.png">`+
+			`<a href="http://x.test/altro.html">non scaricata</a><a href='http://x.test/#top'>t</a>`), 0o644)
+		e.downloaded["http://x.test/"] = page
+		e.downloaded["http://x.test/img/a.png"] = filepath.Join(root, "img", "a.png")
+		e.htmlFiles[page] = true
+		e.convertLinks()
+		got, _ := os.ReadFile(page)
+		want := `<a href="index.html">h</a><img src="img/a.png">` +
+			`<a href="http://x.test/altro.html">non scaricata</a><a href='index.html#top'>t</a>`
+		if string(got) != want {
+			t.Fatalf("link convertiti male:\n got  %s\n want %s", got, want)
 		}
 	}
 }

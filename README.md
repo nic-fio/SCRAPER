@@ -1,192 +1,120 @@
 # scrap
 
-[![release](https://img.shields.io/github/v/release/nicfio/Scraper)](https://github.com/nicfio/Scraper/releases/latest)
-[![license: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue)](LICENSE)
-![platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20windows-lightgrey)
+[![CI](https://github.com/nic-fio/SCRAPER/actions/workflows/ci.yml/badge.svg)](https://github.com/nic-fio/SCRAPER/actions/workflows/ci.yml)
+[Documentazione](https://nic-fio.github.io/SCRAPER/) · [Download](https://github.com/nic-fio/SCRAPER/releases/latest)
 
-**Il coltellino svizzero del download.** Un singolo binario statico (~6 MB, zero
-dipendenze) che combina **download multi-segmento**, **crawling ricorsivo** dei
-siti e una batteria di **filtri** per scegliere esattamente cosa scaricare.
+**Il coltellino svizzero del download.** Un programma da terminale, un **unico
+eseguibile** senza niente da installare, che unisce tre cose: **scaricare file
+a più connessioni** (con ripresa e nuovi tentativi), **copiare siti interi**
+seguendo i link e una batteria di **filtri** per scegliere esattamente cosa
+tenere.
 
-> 🇬🇧 *The Swiss-army knife of downloading — a single zero-dependency static binary
-> that combines a **multi-connection download manager** (parallel HTTP ranges,
-> resume, rate-limit) with a **recursive website crawler/mirror** and powerful
-> **filters**. A modern command-line **alternative to `wget` and `aria2`** that
-> rolls both into one tool. Linux · macOS · Windows.*
-
-> ⚖️ **Licenza:** software *source-available* sotto **PolyForm Noncommercial
-> 1.0.0** — libero per qualsiasi uso **non commerciale**; per l'uso commerciale
-> serve una licenza a pagamento. Vedi [Licenza](#licenza).
-
-## Download
-
-Binari precompilati, nessun Go richiesto → **[Releases](https://github.com/nicfio/Scraper/releases/latest)**
-
-| Sistema | Architettura | |
-|---|---|---|
-| **Linux** | x86-64 · ARM64 | [scrap-linux-amd64](https://github.com/nicfio/Scraper/releases/latest/download/scrap-linux-amd64) · [scrap-linux-arm64](https://github.com/nicfio/Scraper/releases/latest/download/scrap-linux-arm64) |
-| **macOS** | Intel · Apple Silicon | [scrap-darwin-amd64](https://github.com/nicfio/Scraper/releases/latest/download/scrap-darwin-amd64) · [scrap-darwin-arm64](https://github.com/nicfio/Scraper/releases/latest/download/scrap-darwin-arm64) |
-| **Windows** | x86-64 | [scrap-windows-amd64.exe](https://github.com/nicfio/Scraper/releases/latest/download/scrap-windows-amd64.exe) |
-
-```sh
-chmod +x scrap-linux-amd64 && ./scrap-linux-amd64 --help
 ```
-
-Verifica l'integrità con [`SHA256SUMS`](https://github.com/nicfio/Scraper/releases/latest/download/SHA256SUMS): `sha256sum -c SHA256SUMS`.
-
-## Demo
-
-**Guida interattiva** (`scrap --help`) — una TUI a schede, navigabile e scrollabile:
-
-```text
-┌─ scrap — guida ──────────────────────────────────────────────────────────────┐
-│  Info  Download  Crawl  Filtri  Auth  Generali  Esempi                       │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ NOME                                                                         │
-│    scrap — il coltellino svizzero del download                               │
-│                                                                              │
-│ SINTASSI                                                                     │
-│    scrap [opzioni] URL [URL...]                                              │
-│    scrap [opzioni] -i lista.txt                                              │
-│                                                                              │
-│ DESCRIZIONE                                                                  │
-│    scrap è uno strumento da riga di comando che combina lo scaricamento      │
-│    multi-segmento (più connessioni parallele per ogni file), il crawling     │
-│    ricorsivo dei siti e una ricca batteria di filtri per selezionare con     │
-│    precisione cosa scaricare.                                                │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ ←/→ schede · ↑/↓ scorri · PgUp/PgDn · g/G · q esci             righe 1-15/15 │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-**Download in corso** — una barra per file, con i segmenti che si riempiono in parallelo:
-
-```text
- ⬇ medium.dat          ▕██████████▎░░░░░▏  64%  503K/781K  17.0K/s  16s
- ⬇ big.bin             ▕████████▌░░░░░░░▏  53%  2.7M/5.0M  508K/s  5s
-    └ seg ▰▰▱▱ ▰▰▱▱ ▰▰▰▰ ▰▰▱▱ ▰▰▱▱ ▰▰▱▱  (6 connessioni)
+$ scrap -s 8 https://esempio.it/debian.iso
+ ⬇ debian.iso          ▕██████████▎░░░░░░▏  64%  503M/781M  17.0M/s  16s
+    └ seg ▰▰▱▱ ▰▰▰▱ ▰▰▰▰ ▰▰▱▱ ▰▰▱▱ ▰▰▰▱ ▰▰▰▰ ▰▰▱▱  (8 connessioni)
 ────────────────────────────────────────────────────────────────────────
- 2 attivi · 0 fatti · 3.2M · 525K/s
+ 1 attivi · 0 fatti · 503M · 17.0M/s
 ```
 
-## Perché scrap? (vs wget e aria2)
+## In breve
 
-`wget` sa fare crawling ricorsivo ma scarica ogni file su una singola connessione;
-`aria2` è velocissimo grazie al multi-connessione ma non fa mirroring di un sito.
-Di solito ti servono **entrambi** — e due tool diversi, con due sintassi diverse.
+- **Più connessioni per file**: divide un file in N pezzi scaricati insieme;
+  ripresa con `-c`, nuovi tentativi automatici, limite di banda.
+- **Copia di siti** (`-r`, `-m`): segue i link, ricostruisce le cartelle,
+  rispetta `robots.txt`, converte i link per la consultazione senza rete.
+- **Filtri**: estensione, espressione regolare, sito, dimensione, tipo di
+  contenuto, numero di file, quota totale.
+- **Accesso riservato**: utente e password (Basic/Digest), login da modulo,
+  token, intestazioni, cookie in formato `cookies.txt`.
+- **Guida a schede** nel terminale: `scrap --help`.
 
-`scrap` mette le due cose nello stesso binario: il **download multi-connessione**
-in stile aria2 **e** il **crawling/mirror ricorsivo** in stile wget, più una
-batteria di filtri, autenticazione e cookie. Un solo eseguibile statico, zero
-dipendenze runtime, stessa sintassi per tutto.
+## Documentazione
 
-| | `wget` | `aria2` | **`scrap`** |
-|---|:---:|:---:|:---:|
-| Download multi-connessione (range HTTP paralleli) | ✗ | ✓ | **✓** |
-| Crawling / mirror ricorsivo di un sito | ✓ | ✗ | **✓** |
-| Filtri (estensione, regex, dominio, dimensione, quota) | parziale | ✗ | **✓** |
-| Resume + retry per-segmento | ✓ | ✓ | **✓** |
-| Binario singolo, zero dipendenze | ✗ | ✗ | **✓** |
+| Documento | Per |
+|---|---|
+| [Manuale utente](https://nic-fio.github.io/SCRAPER/manuale-utente.html) | Installare e usare scrap: scaricare, copiare siti, filtri, accesso riservato, problemi e soluzioni, tutte le opzioni. |
+| [Manuale tecnico](https://nic-fio.github.io/SCRAPER/manuale-tecnico.html) | Come è fatto dentro: architettura, motore di download, crawler, filtri, test, limiti noti. |
+| [Decisioni e storia](docs/decisioni-e-storia.md) | Perché scrap è fatto così. |
 
-## Cosa fa
+I manuali sono pagine HTML, che GitHub mostra come codice sorgente: leggili
+online su **https://nic-fio.github.io/SCRAPER/**, oppure apri
+`docs/manuale-utente.html` nel browser da un clone (funzionano anche senza rete).
 
-- **Multi-segmentazione**: spezza un file in N range HTTP scaricati in parallelo,
-  con resume, retry per-segmento e rate-limit globale.
-- **Crawling ricorsivo**: segue i link (`a`, `img`, `link`, `script`, `srcset`,
-  CSS `url()`), ricostruisce l'albero delle cartelle, rispetta `robots.txt`,
-  opzionalmente converte i link per la navigazione offline.
-- **Filtri** (il coltellino): per estensione, regex sull'URL, dominio,
-  content-type, dimensione, profondità, quota totale e numero massimo di file.
-- **Output live**: una barra di avanzamento per ogni download attivo, con
-  percentuale, velocità ed ETA, e — per i file multi-segmento — una riga che
-  mostra i singoli segmenti riempirsi in parallelo. Fuori dal terminale (pipe,
-  log) stampa righe semplici.
-- **Autenticazione & cookie**: HTTP Basic/Digest, login via form (cattura il
-  cookie di sessione), token Bearer, header arbitrari, cookie manuali e
-  load/save in formato Netscape `cookies.txt`.
+## Installazione
 
-## Build
+**Il programma pronto è nel repository**: il file `scrap` (Linux x86-64, PC e
+tablet) è già compilato. Clonare basta:
 
-Richiede solo il toolchain Go (≥ 1.21):
-
-```sh
-cd scrap
-CGO_ENABLED=0 go build -ldflags "-s -w" -o scrap .
+```
+git clone https://github.com/nic-fio/SCRAPER.git
+cd SCRAPER
+./scrap --help
 ```
 
-Il risultato è un eseguibile statico autocontenuto: copialo dove vuoi
-(`sudo install -m755 scrap /usr/local/bin/`).
+**Solo il programma, senza clonare**: dall'[ultima release](https://github.com/nic-fio/SCRAPER/releases/latest)
+scarica il file per il tuo sistema (Linux amd64, arm64, armv7, armv6, 386,
+riscv64; macOS; Windows), poi:
 
-## Esempi
-
-```sh
-# Download multi-segmento (8 connessioni) con resume
-scrap -s 8 -c https://example.com/file.iso
-
-# Mirror completo di un sito, link offline
-scrap -m --convert-links https://sito.example/
-
-# Crawl solo immagini e PDF fino a 5 MB, max 200 file
-scrap -r -l 3 -A jpg,png,pdf --max-size 5M --max-files 200 https://sito/
-
-# Scarica un'intera lista, 6 file in parallelo, banda capata a 2 MB/s
-scrap -i urls.txt -j 6 --rate 2M -d ./downloads
-
-# Area riservata: login via form e riuso della sessione
-scrap --login-url https://sito/login --login-data 'user=foo&pass=bar' \
-      --save-cookies cj.txt -m https://sito/area/
-scrap --load-cookies cj.txt https://sito/area/altro
-
-# API con token Bearer
-scrap --bearer "$TOKEN" -o data.json https://api.sito/v1/export
+```
+mv scrap-linux-amd64 scrap && chmod +x scrap
+./scrap --help
 ```
 
-## Guida interattiva
+**Dal sorgente** (serve Go 1.23 o successivo):
 
-`scrap --help` (o `-h`, o senza argomenti) apre una **TUI a schede** a tutto
-schermo, navigabile da tastiera:
+```
+git clone https://github.com/nic-fio/SCRAPER.git
+cd SCRAPER
+tools/setup-dev.sh --install    # pacchetti (chiede sudo) e identità git
+make && make test               # ricostruisce ./scrap, poi tutti i controlli
+```
 
-- `←/→` (o `Tab`, o i tasti `1`–`9`) cambia scheda
-- `↑/↓`, `PgUp/PgDn`, `g/G` scorrono il contenuto
-- `q` o `Esc` esce
+## Recupero dopo un guasto
 
-È scritta interamente con la libreria standard (raw mode via termios, schermo
-alternativo, gestione del ridimensionamento). Quando l'output non è un terminale
-(es. `scrap --help | less`) viene invece stampata una pagina di manuale testuale.
+Il repository contiene **tutto**: l'eseguibile pronto, sorgenti, test,
+manuali, strumenti, la storia completa. Per ripartire su un altro computer o
+tablet:
 
-## Note
+```
+git clone https://github.com/nic-fio/SCRAPER.git
+cd SCRAPER && ./scrap --help
+```
 
-- In modalità ricorsiva ricostruisce l'albero `host/percorso`; di default resta
-  sull'host di partenza (`--span-hosts` per uscirne).
-- `-o` è il percorso esatto del file di output; per scegliere solo la cartella
-  usa `-d`.
-- `--convert-links` riscrive i link assoluti verso i file scaricati: è una
-  conversione di base, sufficiente per la maggior parte dei mirror.
+Per ricostruirlo dal sorgente: `tools/setup-dev.sh --install && make test`.
+`tools/backup.sh` crea anche un backup su file, che si ripristina senza rete. I
+file di cookie e i download non sono nel repository, per scelta. I dettagli
+sono nel capitolo *Recupero su un nuovo dispositivo* del manuale utente.
 
-## Licenza
+## Uso
 
-Copyright © 2026 **Nicola Fiorillo**.
+```
+scrap -s 8 -c https://esempio.it/file.iso              # 8 connessioni, con ripresa
+scrap -i lista.txt -j 6 --rate 2M -d ./dl              # una lista, 6 alla volta, max 2 MB/s
+scrap -m --convert-links https://esempio.it/           # copia del sito, navigabile offline
+scrap -r -A jpg,png,pdf --max-size 5M https://esempio.it/   # solo immagini e PDF fino a 5 MB
+scrap --help                                           # guida a schede
+```
 
-`scrap` è rilasciato con licenza **[PolyForm Noncommercial 1.0.0](LICENSE)**, una
-licenza *source-available*:
+Stato di uscita: 0 tutto scaricato, 1 almeno un indirizzo fallito, 2 opzioni
+sbagliate.
 
-- ✅ **Libero** per ogni uso **non commerciale**: uso personale, studio, ricerca,
-  progetti hobbistici, enti no-profit, scuole, pubblica amministrazione.
-- 💼 **Uso commerciale**: richiede una **licenza commerciale a pagamento**.
+## Lavorare al progetto
 
-Per una licenza commerciale, scrivi a **Nicola Fiorillo — github.com/nic-fio**.
+[CLAUDE.md](CLAUDE.md) raccoglie come si lavora al progetto: gli accordi, le
+decisioni già prese e cosa controllare prima di registrare una modifica.
 
-> Nota: PolyForm Noncommercial *non* è una licenza open source secondo la
-> definizione OSI (che impone di consentire anche l'uso commerciale). Il codice
-> è pubblico e modificabile, ma l'uso commerciale è riservato.
+## Copyright
 
-## Autore
+Copyright (c) 2026 nic-fio. **Tutti i diritti riservati**: il codice è
+pubblico perché si possa leggere e recuperare, ma non è concessa alcuna
+licenza d'uso, copia o modifica. I componenti di terzi mantengono le proprie
+licenze, elencate in [NOTICE.md](NOTICE.md).
 
-**Nicola Fiorillo** · github.com/nic-fio · [github.com/nicfio](https://github.com/nicfio)
+## Stato
 
----
-
-<sub>*Keywords: wget alternative · aria2 alternative · multi-connection / segmented
-download manager · parallel HTTP range downloader · recursive website crawler &
-mirror · CLI download tool · single static Go binary · resume, rate-limit, filters
-· Linux, macOS, Windows.*</sub>
+Versione 1.1. Rispetto alla 1.0 corregge un difetto che poteva produrre file
+corrotti nei download a una connessione e il timeout che faceva fallire i
+download lunghi, più diversi difetti minori (elenco nel manuale tecnico).
+32 test automatici che non usano la rete; provato dal vivo in HTTPS su go.dev
+(impronta SHA-256 verificata).
