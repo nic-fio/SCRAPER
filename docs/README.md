@@ -15,7 +15,7 @@ salvate in un repository. I manuali (in inglese) si leggono in uno di questi due
 browser. Tutto quello che serve alle pagine (stile, script, diagrammi) è in
 `docs/assets`, quindi funzionano anche offline.
 
-[Decisioni e storia](decisioni-e-storia.md) è in Markdown, quindi GitHub lo
+[Decisioni e storia](decisions-and-history.md) è in Markdown, quindi GitHub lo
 mostra già formattato.
 
 Dentro il programma, `scrap --help` mostra la guida integrata a schede.
@@ -27,7 +27,7 @@ Dentro il programma, `scrap --help` mostra la guida integrata a schede.
 | `index.html` | Pagina iniziale del sito della documentazione. |
 | `User Manual.html` | Installare e usare scrap; riferimento di tutte le opzioni. |
 | `Technical Manual.html` | Architettura, funzionamento interno, test, convenzioni, limiti noti. |
-| `decisioni-e-storia.md` | Perché scrap è fatto così. |
+| `decisions-and-history.md` | Perché scrap è fatto così. |
 | `assets/` | Foglio di stile, script e una copia locale di Mermaid (MIT). |
 
 `tools/check-docs.py` (eseguito da `make test`) verifica che i manuali siano

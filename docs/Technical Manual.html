@@ -61,7 +61,7 @@
 <p>The <a href="User%20Manual.html">user manual</a> explains what scrap does; this one explains <em>how</em>. After reading
 it you should know where to put your hands to change the download engine, the crawler or the filters without breaking the
 rest, and how to verify your changes. It assumes you know Go and the basics of HTTP. The <em>why</em> behind the
-choices is in <a href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisioni-e-storia.md">decisions and history</a>.</p>
+choices is in <a href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisions-and-history.md">decisions and history</a>.</p>
 
 <h3 id="principi">Principles</h3>
 <div class="cards">
@@ -124,7 +124,7 @@ if a file changes length by more than 10%, or a new one appears without a row he
     <tr><td><code>*.go</code>, <code>go.mod</code>, <code>go.sum</code></td><td>The program and the tests (module <code>scrap</code>).</td></tr>
     <tr><td><code>cacerts.pem</code></td><td>Mozilla root certificates (distributed by curl.se), embedded in the binary by <code>roots.go</code>.</td></tr>
     <tr><td><code>scrap</code></td><td>The static Linux x86-64 executable, <strong>committed to the repository</strong> so that a <code>git clone</code> is enough even without Go. It is regenerated with <code>make</code> and committed together with every code change.</td></tr>
-    <tr><td><code>docs/</code></td><td>The two HTML manuals, <code>index.html</code>, <code>decisioni-e-storia.md</code>, <code>assets/</code> (style, scripts, Mermaid). Published with GitHub Pages from the <code>/docs</code> folder.</td></tr>
+    <tr><td><code>docs/</code></td><td>The two HTML manuals, <code>index.html</code>, <code>decisions-and-history.md</code>, <code>assets/</code> (style, scripts, Mermaid). Published with GitHub Pages from the <code>/docs</code> folder.</td></tr>
     <tr><td><code>tools/setup-dev.sh</code></td><td>Checks and installs the packages, sets the local git identity.</td></tr>
     <tr><td><code>tools/backup.sh</code></td><td>Complete git bundle (all branches, tags, history).</td></tr>
     <tr><td><code>tools/check-docs.py</code></td><td>Checks on the manuals (see <a href="#controlli-doc">Documentation checks</a>).</td></tr>
@@ -368,7 +368,7 @@ timeout: a segment longer than 60 seconds failed at every attempt (<code>TestTim
 capacity equal to one second of bandwidth. <code>meterReader</code> wraps every response body and calls
 <code>Take(n)</code> after every read. <code>Take</code> <em>reserves</em> the tokens even when going negative and sleeps
 in proportion to the deficit: that way several waiting segments add up their waits instead of multiplying the bandwidth (this was a bug
-in the first version, see <a href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisioni-e-storia.md">the
+in the first version, see <a href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisions-and-history.md">the
 history</a>). <code>parseSize</code> accepts a number, decimals included, with the suffix <code>k/M/G/T</code> (powers of
 1024) and an optional <code>B</code>.</p>
 
@@ -685,7 +685,7 @@ reported twice after a minute of useless retries.</p>
 
 <footer class="doc-footer">
   scrap — Technical Manual, for version 1.1. See also the <a href="User%20Manual.html">user manual</a> and
-  <a href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisioni-e-storia.md">the project's decisions and history</a>.
+  <a href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisions-and-history.md">the project's decisions and history</a>.
   <br>Copyright (c) 2026 nic-fio. All rights reserved.
 </footer>
 
