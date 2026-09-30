@@ -172,9 +172,9 @@ downloads, scrap shows one line for each file in progress:</p>
 ────────────────────────────────────────────────────────────────────────
  1 attivi · 0 fatti · 503M · 17.0M/s</pre>
 <p>On the first line: name, bar, percentage, how much has arrived out of the total, speed and time remaining. The line
-<code>└ seg</code> shows the pieces of the file arriving in parallel, one per connection. At the bottom, the count of files
-active and finished, the total downloaded and the overall speed. When a file finishes, a line with <code>✓</code>
-appears in its place; at the end, the summary:</p>
+<code>└ seg</code> shows the pieces of the file arriving in parallel, one per connection («connessioni» means connections). At the bottom, the count of files
+active and finished («attivi», «fatti»), the total downloaded and the overall speed. When a file finishes, a line with <code>✓</code>
+appears in its place; at the end, the summary («media» means average):</p>
 <pre class="terminal"> ✓ debian.iso  781M  16.4M/s
 ✓ 1 file · 781M in 48s · media 16.4M/s</pre>
 <p>If something went wrong, the summary starts with <code>✗</code> and says how many addresses failed; the reason is
@@ -472,18 +472,18 @@ manual pages: scrollable with <code>less</code> when it goes to a screen, plain 
 <table>
   <thead><tr><th>Message</th><th>What it means and what to do</th></tr></thead>
   <tbody>
-    <tr><td><code>scrap: --max-size: dimensione non valida "abc" (esempi: 500k, 10M, 1.5G)</code></td>
+    <tr><td><code>scrap: --max-size: dimensione non valida "abc" (esempi: 500k, 10M, 1.5G)</code> (invalid size "abc", examples: 500k, 10M, 1.5G)</td>
         <td>The value given to a size option (<code>--min-size</code>, <code>--max-size</code>,
         <code>--quota</code>, <code>--rate</code>, <code>--min-split</code>) is not a number with a valid unit.</td></tr>
-    <tr><td><code>scrap: --accept-re: espressione regolare non valida: …</code></td>
+    <tr><td><code>scrap: --accept-re: espressione regolare non valida: …</code> (invalid regular expression)</td>
         <td>The pattern has an error, often an unclosed parenthesis. To search for a symbol such as <code>(</code>,
         <code>?</code>, <code>.</code> write it with a backslash in front: <code>\(</code>, <code>\?</code>.</td></tr>
-    <tr><td><code>scrap: -l/--level: valore non valido "tre" …</code></td><td>The depth is a number (from 0) or <code>inf</code>.</td></tr>
-    <tr><td><code>scrap: -o vale per un solo indirizzo …</code>, <code>scrap: -o non si usa con -r …</code></td>
+    <tr><td><code>scrap: -l/--level: valore non valido "tre" …</code> (invalid value "tre", three)</td><td>The depth is a number (from 0) or <code>inf</code>.</td></tr>
+    <tr><td><code>scrap: -o vale per un solo indirizzo …</code> (-o applies to a single address only), <code>scrap: -o non si usa con -r …</code> (-o cannot be used with -r)</td>
         <td>To choose where to save several files use <code>-d</code>.</td></tr>
-    <tr><td><code>scrap: -j/--jobs: serve almeno 1 …</code>, <code>scrap: -s/--split: …</code></td><td>The number must be at least 1.</td></tr>
-    <tr><td><code>scrap: --auth: modo sconosciuto …</code></td><td>The modes are <code>auto</code>, <code>basic</code>, <code>digest</code>.</td></tr>
-    <tr><td><code>scrap: login fallito: HTTP 401</code> (or another number)</td>
+    <tr><td><code>scrap: -j/--jobs: serve almeno 1 …</code> (at least 1 is needed), <code>scrap: -s/--split: …</code></td><td>The number must be at least 1.</td></tr>
+    <tr><td><code>scrap: --auth: modo sconosciuto …</code> (unknown mode)</td><td>The modes are <code>auto</code>, <code>basic</code>, <code>digest</code>.</td></tr>
+    <tr><td><code>scrap: login fallito: HTTP 401</code> (login failed; or another number)</td>
         <td>The site rejected the form login: check the address and the field names in <code>--login-data</code>,
         or use the browser's cookies (see <a href="#login-modulo">Login through a web form</a>).</td></tr>
     <tr><td><code>flag provided but not defined: -zz</code></td>
@@ -500,13 +500,13 @@ manual pages: scrollable with <code>less</code> when it goes to a screen, plain 
 <table>
   <thead><tr><th>Message</th><th>What it means and what to do</th></tr></thead>
   <tbody>
-    <tr><td><code>scrap: URL non valido: …</code></td><td>It is not a web address: it must start with <code>http://</code> or <code>https://</code>.</td></tr>
+    <tr><td><code>scrap: URL non valido: …</code> (invalid URL)</td><td>It is not a web address: it must start with <code>http://</code> or <code>https://</code>.</td></tr>
     <tr><td><code>HTTP 404</code>, <code>HTTP 410</code></td><td>The file is not there (any more). It happens often when copying a site: they are broken links of the site itself.</td></tr>
     <tr><td><code>HTTP 401</code>, <code>HTTP 403</code></td><td>Access denied: credentials are needed (see <a href="#accesso">Sites with restricted access</a>) or the site rejects automated programs; sometimes <code>-U</code> with the name of a browser helps.</td></tr>
     <tr><td><code>HTTP 429</code>, <code>HTTP 503</code></td><td>The site is overloaded or is asking you to slow down. scrap retries on its own after waiting; if it happens often use fewer files at once (<code>-j 2</code>) and <code>--rate</code>.</td></tr>
-    <tr><td><code>nessun dato ricevuto per 1m0s</code></td><td>The server stalled halfway (no data received for one minute). scrap retries on its own; if it runs out of attempts, run it again with <code>-c</code>.</td></tr>
-    <tr><td><code>download incompleto: 734003200/1288490188 byte</code></td><td>The server closed the connection before the end on every attempt. Run it again with <code>-c</code>.</td></tr>
-    <tr><td><code>il server ha ignorato la richiesta di un pezzo del file</code></td><td>The server stopped accepting downloads in pieces (it ignored the request for a piece of the file). Run it again with <code>-s 1</code>.</td></tr>
+    <tr><td><code>nessun dato ricevuto per 1m0s</code> (no data received for 1m0s)</td><td>The server stalled halfway (no data received for one minute). scrap retries on its own; if it runs out of attempts, run it again with <code>-c</code>.</td></tr>
+    <tr><td><code>download incompleto: 734003200/1288490188 byte</code> (incomplete download)</td><td>The server closed the connection before the end on every attempt. Run it again with <code>-c</code>.</td></tr>
+    <tr><td><code>il server ha ignorato la richiesta di un pezzo del file</code> (the server ignored the request for a piece of the file)</td><td>The server stopped accepting downloads in pieces (it ignored the request for a piece of the file). Run it again with <code>-s 1</code>.</td></tr>
     <tr><td><code>… x509: certificate signed by unknown authority</code>, <code>… certificate has expired</code></td>
         <td>The site's security certificate is not valid. If you are sure of the site, <code>--insecure</code> skips the
         check (for all the sites in that command).</td></tr>

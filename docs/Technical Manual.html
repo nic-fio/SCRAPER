@@ -357,7 +357,7 @@ connection the data was written twice and the corrupted file was renamed as comp
       (<code>ResponseHeaderTimeout</code>);</li>
   <li>a stalled transfer: <code>Client.Do</code> wraps every body in <code>idleBody</code>, a timer reset at
       every read which, if it expires, cancels the request's context. The read fails with
-      <code>nessun dato ricevuto per …</code>, a transient error: the next attempt restarts from the right point.</li>
+      <code>nessun dato ricevuto per …</code> (no data received for …), a transient error: the next attempt restarts from the right point.</li>
 </ul>
 <p>With <code>--timeout 0</code> all these limits are disabled. Up to 1.0 the value was the client's total
 timeout: a segment longer than 60 seconds failed at every attempt (<code>TestTimeoutDoesNotLimitTotalDuration</code>,
