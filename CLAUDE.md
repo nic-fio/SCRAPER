@@ -49,6 +49,7 @@ Il perché di ciascuna è in [docs/decisions-and-history.md](docs/decisions-and-
 | `*_test.go` | 32 test senza rete; `main_test.go` prova il programma intero in un sottoprocesso. |
 | `docs/` | `User Manual.html`, `Technical Manual.html` (in inglese; nei link `%20` al posto dello spazio), `index.html`, `decisions-and-history.md`, `assets/`. Pubblicati con GitHub Pages. |
 | `tools/` | `setup-dev.sh` (pacchetti e identità git), `backup.sh` (bundle git), `check-docs.py` (controlli dei manuali). |
+| `logos/` | `scraper-logo.png`, il logo (PNG 2172×724, sfondo bianco). Non è usato nei manuali. |
 | `cacerts.pem` | Certificati radice incorporati; aggiornare con `curl -fsSL -o cacerts.pem https://curl.se/ca/cacert.pem`. |
 | `scrap` | L'eseguibile Linux x86-64, **registrato**: va rigenerato con `make` e registrato insieme a ogni modifica del codice. |
 | `dist/` | Binari per le release, mai registrati. |
