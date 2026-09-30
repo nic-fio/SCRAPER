@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>scrap — User Manual</title>
+<meta name="description" content="User manual for scrap, the Swiss Army knife of downloading: download files over multiple connections, copy entire websites, filters, sites with restricted access, troubleshooting, option reference.">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="topbar">
+  <button class="btn menu-btn" type="button" aria-label="Open the contents">&#9776; Contents</button>
+  <strong>scrap — User Manual</strong>
+</div>
+<div class="layout">
+<nav class="sidebar" aria-label="Contents">
+  <div class="brand">
+    <div class="brand-logo">&#8595;</div>
+    <div class="brand-text"><strong>scrap — User Manual</strong><span>version 1.1</span></div>
+  </div>
+  <div class="search">
+    <input type="search" placeholder="Search  ( / )" aria-label="Search">
+    <div class="search-results" role="listbox"></div>
+  </div>
+  <div class="toc"></div>
+  <div class="side-tools">
+    <button class="btn print-btn" type="button">Print / PDF</button>
+    <a class="btn" href="Technical%20Manual.html">Technical Manual</a>
+  </div>
+</nav>
+
+<main>
+
+<header class="titlepage">
+  <div class="kicker">User Manual</div>
+  <h1>Using scrap</h1>
+  <p class="lead">How to install scrap, download files (even very large ones), copy an entire website, use the
+  filters to choose what to download, get into sites with restricted access and cope when something goes wrong. At the
+  end you will find the complete reference of every option.</p>
+  <div class="meta">
+    <span><b>Version</b> 1.1</span>
+    <span><b>System</b> Linux (x86-64 and 64-bit ARM)</span>
+    <span><b>Program</b> a single file, nothing to install</span>
+  </div>
+</header>
+
+<section class="unnumbered no-toc">
+  <h2 class="unnumbered" id="contents">Contents</h2>
+  <div class="toc-print" id="contents-list"></div>
+  <p>Press <kbd>/</kbd> to search. The <a href="#index">index</a> at the end lists options, files and topics.</p>
+</section>
+
+<!-- ===================================================================== -->
+<h2 id="introduzione">Introduction</h2>
+
+<p class="chapter-intro">What scrap is, what it does and what it deliberately does not do.</p>
+
+<h3 id="cos-e">What it is</h3>
+<p>scrap is a terminal program for downloading from the web. It combines in a single tool two things that usually
+take two different programs: <strong>downloading a file quickly</strong>, by opening several connections at once
+to the same file, and <strong>copying an entire website</strong> (or part of it) by following the links from one page to the next.
+On top of that there are many <strong>filters</strong> for choosing exactly what to keep: only the images, only the PDFs
+under a certain size, only the pages of a certain site, and so on. That is why we call it &laquo;the Swiss Army
+knife of downloading&raquo;.</p>
+<p>It is <strong>a single executable file</strong>: it needs nothing else installed, not even the security certificates for
+<code>https</code> sites, which it carries with it.</p>
+
+<div class="cards">
+  <div class="card"><div class="icon">&#8649;</div><h4>Multiple connections per file</h4>
+    <p>Splits a large file into 4 pieces (or as many as you like) downloaded at the same time: often much faster.</p></div>
+  <div class="card"><div class="icon">&#8634;</div><h4>Resumes</h4>
+    <p>If the connection drops it retries on its own; if you stop it, run it again with <code>-c</code> and it picks up where it left off.</p></div>
+  <div class="card"><div class="icon">&#9776;</div><h4>Copies websites</h4>
+    <p>Follows the links in the pages and rebuilds the site's folders on your disk, even for browsing offline.</p></div>
+  <div class="card"><div class="icon">&#9881;</div><h4>Filters</h4>
+    <p>By file type, size, name, site, total amount: you download only what you are interested in.</p></div>
+  <div class="card"><div class="icon">&#128274;</div><h4>Restricted access</h4>
+    <p>Username and password, login through a web form, tokens, browser cookies.</p></div>
+  <div class="card"><div class="icon">?</div><h4>Built-in help</h4>
+    <p><code>scrap --help</code> opens a tabbed help screen in the terminal.</p></div>
+</div>
+
+<h3 id="cosa-non-fa">What it does not do</h3>
+<ul>
+  <li><strong>It does not run JavaScript.</strong> scrap reads pages exactly as they arrive from the server: sites that build
+      their content in the browser with JavaScript (many modern sites) can only be partly copied.</li>
+  <li><strong>It does not get around protections</strong>: captchas, waiting times, limits. For file hosting sites with accounts there is
+      the sister project <a href="https://github.com/nic-fio/HOSTER">hoster</a>.</li>
+  <li><strong>By default it respects <code>robots.txt</code></strong>, the file with which a site asks automated programs
+      not to visit certain parts (see <a href="#robots">The site's rules</a>).</li>
+</ul>
+<div class="callout"><span class="callout-title">Intended use</span>
+<p>Downloading content you are authorized to download, at a pace that is respectful of the servers. When you copy a site that
+is not yours, keep the number of simultaneous downloads low (<code>-j</code>) and, if the site is small, limit the bandwidth
+(<code>--rate</code>).</p></div>
+
+<h3 id="come-funziona-in-breve" data-index="how it works">How it works, in brief</h3>
+<pre class="mermaid">
+flowchart LR
+  A["one or more addresses&lt;br/&gt;(or a list with -i)"] --> B{"-r or -m?"}
+  B -->|"no"| C["downloads each file&lt;br/&gt;over multiple connections"]
+  B -->|"yes"| D["reads the pages&lt;br/&gt;and follows the links"]
+  D --> E["filters: what to keep"]
+  E --> C
+  C --> F["files on disk&lt;br/&gt;(resume with -c)"]
+</pre>
+<p>Without any particular options scrap downloads the addresses you give it. With <code>-r</code> (or <code>-m</code>) it opens the
+web pages, collects their links and carries on from page to page, keeping only what passes the filters.</p>
+
+<!-- ===================================================================== -->
+<h2 id="installazione">Installation</h2>
+
+<p class="chapter-intro">Three ways: the ready-made program in the repository, the ready-made program from the releases, or
+building it from the source code.</p>
+
+<h3 id="nel-repository" data-index="executable;git clone">The ready-made program, with git clone</h3>
+<p>The repository already contains the compiled program, the file <code>scrap</code> (for Linux PCs and tablets with an
+Intel or AMD processor). Just clone it:</p>
+<pre class="terminal">$ git clone https://github.com/nic-fio/SCRAPER.git
+$ cd SCRAPER
+$ ./scrap --help</pre>
+<p>Nothing else needs to be installed.</p>
+
+<h3 id="programma-pronto" data-index="release;binary">Just the program, from the releases</h3>
+<p>On the <a href="https://github.com/nic-fio/SCRAPER/releases/latest">releases page on GitHub</a> there are two
+files:</p>
+<table>
+  <thead><tr><th>File</th><th>For</th></tr></thead>
+  <tbody>
+    <tr><td><code>scrap-linux-amd64</code></td><td>Linux PCs and tablets with an Intel or AMD processor (most of them).</td></tr>
+    <tr><td><code>scrap-linux-arm64</code></td><td>Raspberry Pi 4 or 5 and other 64-bit ARM devices.</td></tr>
+  </tbody>
+</table>
+<p>If you do not know which one you need, the command <code>uname -m</code> tells you: <code>x86_64</code> means amd64,
+<code>aarch64</code> means arm64. For other systems (Mac, Windows, 32-bit ARM) the program can be built from the
+source: see the <a href="Technical%20Manual.html#build">technical manual</a>. Once the file is downloaded:</p>
+<pre class="terminal">$ mv ~/Scaricati/scrap-linux-amd64 scrap
+$ chmod +x scrap
+$ ./scrap --help</pre>
+<p>The release page also contains <code>SHA256SUMS</code>, to check that the file arrived
+intact: <code>sha256sum -c SHA256SUMS --ignore-missing</code>.</p>
+
+<h3 id="ovunque" data-index="install;/usr/local/bin">Using it from any folder</h3>
+<p>To type just <code>scrap</code> instead of <code>./scrap</code>, copy it into a program folder (it asks for the
+password):</p>
+<pre class="terminal">$ sudo install -m 0755 scrap /usr/local/bin/scrap
+$ scrap --help</pre>
+<p>In the examples in this manual the program is simply called <code>scrap</code>.</p>
+
+<h3 id="dal-sorgente" data-index="compiling;git clone">From the source code</h3>
+<p>You need a Debian or Ubuntu machine with an Internet connection. The script <code>tools/setup-dev.sh</code> checks
+and installs whatever is missing (the Go compiler and a few other packages; it asks for the password for <code>sudo</code>):</p>
+<pre class="terminal">$ git clone https://github.com/nic-fio/SCRAPER.git
+$ cd SCRAPER
+$ tools/setup-dev.sh --install
+$ make
+$ make test</pre>
+<p><code>make</code> rebuilds the <code>scrap</code> program from the code; <code>make test</code> runs all the automatic
+checks. You only need this if you want to modify scrap.</p>
+
+<!-- ===================================================================== -->
+<h2 id="primi-passi">First steps</h2>
+
+<p class="chapter-intro">The first download, what you see on the screen and where the files end up.</p>
+
+<h3 id="primo-download">Downloading a file</h3>
+<pre class="terminal">$ scrap https://esempio.it/immagini/debian.iso</pre>
+<p>The file is saved in the folder you run the command from, with its own name (<code>debian.iso</code>). While it
+downloads, scrap shows one line for each file in progress:</p>
+<pre class="terminal"> ⬇ debian.iso          ▕██████████▎░░░░░░▏  64%  503M/781M  17.0M/s  16s
+    └ seg ▰▰▱▱ ▰▰▰▱ ▰▰▰▰ ▰▰▱▱  (4 connessioni)
+────────────────────────────────────────────────────────────────────────
+ 1 attivi · 0 fatti · 503M · 17.0M/s</pre>
+<p>On the first line: name, bar, percentage, how much has arrived out of the total, speed and time remaining. The line
+<code>└ seg</code> shows the pieces of the file arriving in parallel, one per connection. At the bottom, the count of files
+active and finished, the total downloaded and the overall speed. When a file finishes, a line with <code>✓</code>
+appears in its place; at the end, the summary:</p>
+<pre class="terminal"> ✓ debian.iso  781M  16.4M/s
+✓ 1 file · 781M in 48s · media 16.4M/s</pre>
+<p>If something went wrong, the summary starts with <code>✗</code> and says how many addresses failed; the reason is
+written above it, on a line that starts with <code>scrap:</code>.</p>
+
+<h3 id="dove-salva" data-index="-d;destination folder;-o">Where it saves and under what name</h3>
+<ul>
+  <li><strong>Folder</strong>: with <code>-d</code> you choose where to save (the folder is created if it does not exist):
+      <code>scrap -d ~/iso https://…/debian.iso</code>.</li>
+  <li><strong>Name</strong>: with <code>-o</code> you choose the file name:
+      <code>scrap -o debian-12.iso https://…/download?id=42</code>. It applies to <strong>a single address</strong>: with several
+      addresses, or together with <code>-r</code>/<code>-m</code>, scrap stops and asks you to use <code>-d</code>.</li>
+  <li><strong>Odd names</strong>: accented letters, spaces and symbols in the name are replaced with
+      <code>_</code>; if the address has a part after the <code>?</code>, it ends up in the name after an <code>@</code>
+      (<code>download@id_42</code>). With <code>-o</code> you choose a clean name yourself.</li>
+</ul>
+<p>While a file is in progress it is called <code>NOME.part</code>; it takes its final name only when it is complete.</p>
+
+<h3 id="lista" data-index="-i;list of addresses">Downloading a list of addresses</h3>
+<p>Put the addresses in a text file, one per line. Empty lines and lines that start with <code>#</code>
+are skipped:</p>
+<pre class="code" data-lang="conf" data-title="lista.txt">
+# ISOs to download tonight
+https://esempio.it/debian.iso
+https://esempio.it/ubuntu.iso
+</pre>
+<pre class="terminal">$ scrap -i lista.txt -d ~/iso</pre>
+<p>You can also write several addresses directly in the command, one after the other, and combine them with <code>-i</code>.</p>
+
+<!-- ===================================================================== -->
+<h2 id="scaricare">Downloading files</h2>
+
+<p class="chapter-intro">How scrap behaves while downloading and how to adjust it.</p>
+
+<h3 id="connessioni" data-index="-s;connections per file;segments;--min-split">Connections per file</h3>
+<p>By default scrap splits each file into <strong>4 pieces</strong> downloaded at the same time, each with its own connection. Many
+servers limit the speed of each single connection: with more pieces at once you get there faster.
+<code>-s 8</code> uses 8 connections, <code>-s 1</code> just one.</p>
+<p>The split happens only if the server accepts downloads &laquo;in pieces&raquo; and if the file is at least 1 MB
+(<code>--min-split</code> changes the threshold). Otherwise scrap downloads the file over a single connection, without you
+having to do anything.</p>
+
+<h3 id="parallelo" data-index="-j;parallel">How many files at once</h3>
+<p>By default scrap works on <strong>4 files at a time</strong> (<code>-j</code> changes the number). With a long list,
+<code>-j 8</code> goes faster if the line can take it; <code>-j 1</code> downloads one file at a time. When you copy a site,
+the same number applies to the pages read at the same time.</p>
+
+<h3 id="ripresa" data-index="resume;-c;interruption;--retries;--retry-wait">Interruptions and resuming</h3>
+<p>If the connection drops, scrap <strong>retries on its own</strong> up to 5 times (<code>--retries</code>) and restarts from the
+point it had reached. Between one attempt and the next it waits 2 seconds, then 4, then 8… up to a maximum of one minute
+(<code>--retry-wait</code> sets the initial wait); if the server says how long to wait, scrap waits that long.
+It does not retry, however, when the server answers with a permanent refusal, for example &laquo;file not found&raquo; (404)
+or &laquo;access denied&raquo; (403): trying again would change nothing.</p>
+<p>If you stop the program yourself (<kbd>Ctrl</kbd>+<kbd>C</kbd>), run the same command again adding <code>-c</code>:</p>
+<pre class="terminal">$ scrap -c -i lista.txt -d ~/iso</pre>
+<p>Files left half-finished (<code>.part</code>) restart from where they had got to. <strong>Files that are already complete are
+always skipped</strong>, with or without <code>-c</code>: the summary counts them as <code>già presenti</code> (already present).</p>
+<div class="callout warning"><span class="callout-title">Good to know</span>
+<p>Without <code>-c</code> a half-finished file starts again from zero. After a <strong>sudden power-off</strong>
+(flat battery, not <kbd>Ctrl</kbd>+<kbd>C</kbd>) it is safer to delete the <code>.part</code> of that file and
+download it again: the last data written before the power-off may not have reached the disk.</p></div>
+
+<h3 id="banda" data-index="bandwidth;speed;--rate">Limiting the bandwidth</h3>
+<p><code>--rate</code> sets an overall limit, valid for all downloads together:</p>
+<pre class="terminal">$ scrap --rate 2M -i lista.txt</pre>
+<p>Sizes in scrap are written as a number and a unit: <code>k</code> (kilobytes), <code>M</code> (megabytes),
+<code>G</code> (gigabytes), <code>T</code>, also in lower case and with decimals (<code>1.5M</code>); the
+form <code>10MB</code> works too. For <code>--rate</code> they are bytes per second: <code>2M</code> is about 2 megabytes per second,
+that is about 16 megabits. <code>0</code>, the default value, means no limit.</p>
+
+<h3 id="rete-lenta" data-index="--timeout">Slow or unstable networks</h3>
+<p><code>--timeout</code> (60 seconds) is the maximum waiting time when the server <em>does not respond</em>: to
+connect, for the first response and, during a download, without receiving even a single byte. <strong>It does not limit the duration
+of a download</strong>: a file of many gigabytes can take hours. If the server stalls halfway, after
+<code>--timeout</code> seconds scrap interrupts and retries from the right point. On a very slow network you can raise it, for
+example <code>--timeout 120 --retries 10</code>.</p>
+
+<!-- ===================================================================== -->
+<h2 id="copiare-siti">Copying a website</h2>
+
+<p class="chapter-intro">Following the links from one page to the next and rebuilding the site on disk.</p>
+
+<h3 id="ricorsivo" data-index="-r;-l;recursive;depth">Following the links</h3>
+<pre class="terminal">$ scrap -r https://esempio.it/manuali/</pre>
+<p>With <code>-r</code> scrap opens the page, collects all its links (hyperlinks, images, style sheets,
+scripts, videos…) and downloads them; for every web page it finds it repeats the same work. It stops after <strong>5
+steps</strong> of links from the starting page: the <em>depth</em>, which you change with <code>-l</code>
+(<code>-l 2</code>: the starting page, the pages it leads to, and the ones those lead to). <code>-l inf</code>
+removes the limit.</p>
+
+<h3 id="mirror" data-index="-m;mirror;full copy">Full copy</h3>
+<pre class="terminal">$ scrap -m --convert-links https://esempio.it/</pre>
+<p><code>-m</code> is the full copy of a site: like <code>-r</code>, but with no depth limit. With
+<code>--convert-links</code>, at the end scrap rewrites the links in the saved pages so that they point to the files on your disk:
+open <code>esempio.it/index.html</code> in the browser and you can browse even without a network.</p>
+
+<h3 id="struttura-salvata" data-index="folders;index.html">How the files are saved</h3>
+<p>With <code>-r</code> and <code>-m</code> scrap rebuilds the site's folders, inside a folder named after the
+site:</p>
+<pre class="code" data-lang="text" data-title="scrap -m https://esempio.it/">
+esempio.it/
+├── index.html              ← the page https://esempio.it/
+├── chi-siamo.html
+├── manuali/
+│   ├── index.html          ← the page https://esempio.it/manuali/
+│   └── guida.pdf
+└── img/
+    └── logo.png
+</pre>
+<p>An address ending in <code>/</code> becomes <code>index.html</code>; a web page without an extension gets
+<code>.html</code> added at the end. Without <code>-r</code>/<code>-m</code>, on the other hand, each file goes straight into the
+destination folder, with just its name.</p>
+
+<h3 id="restare-sul-sito" data-index="--span-hosts;--domains;--exclude-domains;--no-parent;host">Staying within the site</h3>
+<ul>
+  <li><strong>Other sites</strong>: by default scrap follows only links to the starting site (and its subdomains:
+      starting from <code>esempio.it</code>, <code>www.esempio.it</code> is fine too). <code>--span-hosts</code> removes
+      this limit: always use it together with a filter, otherwise you risk downloading half the web.</li>
+  <li><strong>Chosen sites</strong>: <code>--domains esempio.it,cdn.esempio.net</code> follows only these sites;
+      <code>--exclude-domains pubblicita.com</code> excludes them.</li>
+  <li><strong>Only below a folder</strong>: <code>--no-parent</code> does not go above the starting folder.
+      Starting from <code>https://esempio.it/manuali/</code> it downloads <code>/manuali/…</code> but not
+      <code>/blog/</code>.</li>
+</ul>
+
+<h3 id="requisiti-pagina" data-index="--page-requisites;page resources">Pages complete with images and styles</h3>
+<p>A web page on its own is not enough to display it properly: it needs its images, style sheets and scripts. With
+<code>-r</code> they are already downloaded, except at the maximum depth, where scrap stops. With
+<code>--page-requisites</code> the resources of the pages are always downloaded, even at the last level and even outside
+<code>--no-parent</code>. Without <code>-r</code>, it saves <strong>a single complete page</strong>:</p>
+<pre class="terminal">$ scrap --page-requisites --convert-links https://esempio.it/articolo.html</pre>
+
+<h3 id="robots" data-index="robots.txt;--robots=false">The site's rules</h3>
+<p>Many sites have a <code>robots.txt</code> file that asks automated programs not to visit certain parts.
+When it copies a site, scrap reads it and respects it: forbidden addresses are skipped (with <code>-v</code> you see it
+written: <code>bloccato da robots.txt</code>, blocked by robots.txt). <code>--robots=false</code> ignores these rules: use it only on your own sites
+or when you have permission. For single files downloaded without <code>-r</code>, <code>robots.txt</code> is not
+consulted.</p>
+
+<!-- ===================================================================== -->
+<h2 id="filtri">Filters</h2>
+
+<p class="chapter-intro">Choosing exactly what to download: the heart of the knife.</p>
+
+<h3 id="filtri-tipo" data-index="-A;-R;extensions">By file type</h3>
+<pre class="terminal">$ scrap -r -A jpg,png,pdf https://esempio.it/</pre>
+<p><code>-A</code> keeps only the files with those extensions; <code>-R</code> discards the ones listed (for example
+<code>-R zip,exe</code>). Upper and lower case are the same, the leading dot is optional.</p>
+<p>While a site is being copied, web pages are still <strong>read</strong> to find their links, but they are
+<strong>saved</strong> only if they pass the filters. With <code>-A jpg,png</code>, therefore, scrap goes through all the pages
+but on disk you find only the images. To keep the pages too, add <code>html</code> to the list (pages without
+an extension, such as <code>/manuali/</code>, count as <code>html</code>).</p>
+
+<h3 id="filtri-nome" data-index="--accept-re;--reject-re;regular expression">By name or address</h3>
+<p><code>--accept-re</code> follows only the addresses that contain a certain pattern, <code>--reject-re</code> excludes
+the ones that contain it. The pattern is a <em>regular expression</em>, a compact way of describing text:</p>
+<table>
+  <thead><tr><th>Write</th><th>It means</th></tr></thead>
+  <tbody>
+    <tr><td><code>--reject-re '/tag/|/autore/'</code></td><td>skip the addresses that contain <code>/tag/</code> or <code>/autore/</code></td></tr>
+    <tr><td><code>--accept-re '2024'</code></td><td>only the addresses that contain <code>2024</code></td></tr>
+    <tr><td><code>--reject-re '\?'</code></td><td>skip the addresses with a <code>?</code> (often the site's sorting and filter options)</td></tr>
+  </tbody>
+</table>
+<p>Write the pattern between single quotes, as in the examples, so that the terminal does not change its symbols.</p>
+<div class="callout warning"><span class="callout-title">Caution</span>
+<p>These two filters apply to every address, including the pages to go through and the starting one: with
+<code>--accept-re 'pdf$'</code> scrap discards the starting page straight away and downloads nothing. To keep only certain files
+without blocking navigation use <code>-A pdf</code>; <code>--accept-re</code> is for narrowing the tour, for
+example <code>--accept-re '/manuali/'</code>.</p></div>
+
+<h3 id="filtri-dimensione" data-index="--min-size;--max-size;size">By size</h3>
+<p><code>--min-size 100k</code> skips files smaller than 100 kilobytes (useful for discarding thumbnails and icons),
+<code>--max-size 50M</code> those larger than 50 megabytes. The size is checked before downloading; if the
+server does not declare it, the file is downloaded.</p>
+
+<h3 id="filtri-contenuto" data-index="--types;content-type">By content</h3>
+<p>The server declares what it is sending (the <em>content type</em>): <code>image/jpeg</code>,
+<code>application/pdf</code>, <code>text/html</code>… <code>--types</code> keeps only the listed types; with
+<code>/*</code> at the end you take a whole family:</p>
+<pre class="terminal">$ scrap -r --types 'image/*,application/pdf' https://esempio.it/</pre>
+<p>It is more reliable than <code>-A</code> when the addresses have no extension (for example
+<code>/scarica?id=42</code>).</p>
+
+<h3 id="filtri-limiti" data-index="--max-files;--quota;limits">How much in total</h3>
+<ul>
+  <li><code>--max-files 200</code>: stops after saving 200 files (saved web pages count).</li>
+  <li><code>--quota 2G</code>: stops after downloading 2 gigabytes in total. Downloads already under way may go
+      slightly over the limit; a file interrupted by the quota stays <code>.part</code>.</li>
+</ul>
+
+<h3 id="filtri-esempi">Examples</h3>
+<table>
+  <thead><tr><th>For</th><th>Command</th></tr></thead>
+  <tbody>
+    <tr><td>All the PDFs of a site</td><td><code>scrap -m -A pdf https://esempio.it/</code></td></tr>
+    <tr><td>The photos, no thumbnails, at most 500</td><td><code>scrap -r -A jpg,jpeg,png --min-size 50k --max-files 500 https://esempio.it/galleria/</code></td></tr>
+    <tr><td>A site without tag and search pages</td><td><code>scrap -m --reject-re '/tag/|\?s=' --convert-links https://esempio.it/</code></td></tr>
+    <tr><td>Just one section, with its images</td><td><code>scrap -r --no-parent --page-requisites https://esempio.it/manuali/</code></td></tr>
+  </tbody>
+</table>
+
+<!-- ===================================================================== -->
+<h2 id="accesso">Sites with restricted access</h2>
+
+<p class="chapter-intro">Downloading from sites that ask for a username and password, a login or a token.</p>
+
+<h3 id="utente-password" data-index="--user;--password;--auth;Basic;Digest">Server username and password</h3>
+<p>Some sites ask for a username and password in a small browser window, before even showing the page. For
+these:</p>
+<pre class="terminal">$ scrap --user mario --password 'segreta' https://esempio.it/riservato/file.zip</pre>
+<p>scrap recognizes on its own the two systems in use (<em>Basic</em> and <em>Digest</em>). <code>--auth digest</code> avoids
+sending the password in readable form until the server asks for it the Digest way.</p>
+
+<h3 id="login-modulo" data-index="--login-url;--login-data;login;--save-cookies;--load-cookies;cookies.txt">Login through a web form</h3>
+<p>Many sites have a login page with a form. scrap can submit it before starting and then use the session
+it obtains:</p>
+<pre class="terminal">$ scrap --login-url https://esempio.it/login --login-data 'utente=mario&amp;password=segreta' \
+        --save-cookies sessione.txt -m https://esempio.it/area-soci/</pre>
+<p><code>--login-data</code> takes the names of the form fields, which you find in the code of the login page (in the
+browser: right-click on the field, &laquo;Inspect&raquo;, attribute <code>name</code>). With <code>--save-cookies</code>
+the session is saved to a file; next time you just load it, without logging in again:</p>
+<pre class="terminal">$ scrap --load-cookies sessione.txt https://esempio.it/area-soci/altro.pdf</pre>
+<p>The format is the standard <code>cookies.txt</code> one: you can also export the cookies from the browser with an extension
+and load them with <code>--load-cookies</code>. It is the safest way for sites with a complicated login (captchas, codes
+by SMS): you log in in the browser, export the cookies, download with scrap.</p>
+<div class="callout"><span class="callout-title">Limitation</span>
+<p>Form login sends only the fields you write. If the login page contains a hidden code that changes at
+every visit (many sites do this for security), the login fails: use the cookies exported from the browser.</p></div>
+
+<h3 id="token" data-index="--bearer;-H;--header;--cookie;token">Tokens, headers and hand-written cookies</h3>
+<ul>
+  <li><code>--bearer TOKEN</code>: for services that give you an access <em>token</em> (typical of APIs).</li>
+  <li><code>-H 'Nome: valore'</code>: adds any header to the request; it can be repeated.</li>
+  <li><code>--cookie 'nome=valore; altro=valore'</code>: sends hand-written cookies.</li>
+  <li><code>--referer</code> and <code>-U</code>: tell the server which page you are coming from and which program you present yourself as
+      (see the <a href="#riferimento">reference</a>).</li>
+</ul>
+
+<div class="callout danger"><span class="callout-title">Be careful with passwords</span>
+<p>Passwords and tokens written in the command stay in the terminal history and, while scrap is working, are visible
+to the other users of the same computer. Cookie files (<code>sessione.txt</code>) are as good as a password: whoever
+has them gets into the site in your place. Do not share them and do not upload them to GitHub (the scrap repository ignores the names
+<code>cookies.txt</code>, <code>cj.txt</code> and <code>*.cookies</code>).</p></div>
+
+<!-- ===================================================================== -->
+<h2 id="messaggi">Messages and silence</h2>
+
+<p class="chapter-intro">Seeing more, or less, of what is going on.</p>
+<table>
+  <thead><tr><th>Option</th><th>What you see</th></tr></thead>
+  <tbody>
+    <tr><td>(none)</td><td>Bars, a <code>✓</code> line for each finished file, the errors, the summary.</td></tr>
+    <tr><td><code>-v</code></td><td>In addition, the reason for every choice: files skipped by the filters or by <code>robots.txt</code>,
+        files already present, new attempts with the reason.</td></tr>
+    <tr><td><code>-qe</code></td><td>Only the errors.</td></tr>
+    <tr><td><code>-qa</code></td><td>Nothing at all. How it went is told only by the <a href="#stati-uscita">exit
+        status</a>.</td></tr>
+  </tbody>
+</table>
+<p>When the output does not go to a screen (for example <code>scrap … 2&gt; registro.txt</code>), scrap writes plain
+text lines instead of the bars. The variable <code>NO_COLOR</code> turns off the colors:
+<code>NO_COLOR=1 scrap …</code>.</p>
+
+<!-- ===================================================================== -->
+<h2 id="guida-integrata" data-index="--help;tabbed help">The built-in help</h2>
+
+<p class="chapter-intro">Help always at hand, even without this manual.</p>
+
+<p><code>scrap --help</code> (or <code>-h</code>, <code>scrap help</code>, or <code>scrap</code> on its own) opens in the
+terminal a tabbed help screen: <em>Info</em>, <em>Download</em>, <em>Crawl</em>, <em>Filtri</em> (filters), <em>Auth</em>,
+<em>Generali</em> (general) and <em>Esempi</em> (examples).</p>
+<table>
+  <thead><tr><th>Keys</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd>, <kbd>Tab</kbd>, <kbd>h</kbd> <kbd>l</kbd>, <kbd>Enter</kbd></td><td>Previous / next tab.</td></tr>
+    <tr><td><kbd>1</kbd> … <kbd>7</kbd></td><td>Goes straight to that tab.</td></tr>
+    <tr><td><kbd>↑</kbd> <kbd>↓</kbd>, <kbd>j</kbd> <kbd>k</kbd></td><td>Scrolls by one line.</td></tr>
+    <tr><td><kbd>PgUp</kbd> <kbd>PgDn</kbd>, <kbd>b</kbd> <kbd>Space</kbd></td><td>Scrolls by one page.</td></tr>
+    <tr><td><kbd>g</kbd> <kbd>G</kbd>, <kbd>Home</kbd> <kbd>End</kbd></td><td>Start / end of the tab.</td></tr>
+    <tr><td><kbd>q</kbd>, <kbd>Esc</kbd>, <kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Quits.</td></tr>
+  </tbody>
+</table>
+<p>If the terminal is too small (fewer than 44 columns or 10 lines), or if the output does not go to a
+screen (for example <code>scrap --help &gt; guida.txt</code>), the same help appears as text in the format of
+manual pages: scrollable with <code>less</code> when it goes to a screen, plain text otherwise.</p>
+
+<!-- ===================================================================== -->
+<h2 id="problemi">Troubleshooting</h2>
+
+<p class="chapter-intro">Every error message, what it means and what to do.</p>
+
+<h3 id="errori-avvio">The program stops straight away</h3>
+<p>These messages stop the program before it starts, with exit status 2 (1 for the login).</p>
+<table>
+  <thead><tr><th>Message</th><th>What it means and what to do</th></tr></thead>
+  <tbody>
+    <tr><td><code>scrap: --max-size: dimensione non valida "abc" (esempi: 500k, 10M, 1.5G)</code></td>
+        <td>The value given to a size option (<code>--min-size</code>, <code>--max-size</code>,
+        <code>--quota</code>, <code>--rate</code>, <code>--min-split</code>) is not a number with a valid unit.</td></tr>
+    <tr><td><code>scrap: --accept-re: espressione regolare non valida: …</code></td>
+        <td>The pattern has an error, often an unclosed parenthesis. To search for a symbol such as <code>(</code>,
+        <code>?</code>, <code>.</code> write it with a backslash in front: <code>\(</code>, <code>\?</code>.</td></tr>
+    <tr><td><code>scrap: -l/--level: valore non valido "tre" …</code></td><td>The depth is a number (from 0) or <code>inf</code>.</td></tr>
+    <tr><td><code>scrap: -o vale per un solo indirizzo …</code>, <code>scrap: -o non si usa con -r …</code></td>
+        <td>To choose where to save several files use <code>-d</code>.</td></tr>
+    <tr><td><code>scrap: -j/--jobs: serve almeno 1 …</code>, <code>scrap: -s/--split: …</code></td><td>The number must be at least 1.</td></tr>
+    <tr><td><code>scrap: --auth: modo sconosciuto …</code></td><td>The modes are <code>auto</code>, <code>basic</code>, <code>digest</code>.</td></tr>
+    <tr><td><code>scrap: login fallito: HTTP 401</code> (or another number)</td>
+        <td>The site rejected the form login: check the address and the field names in <code>--login-data</code>,
+        or use the browser's cookies (see <a href="#login-modulo">Login through a web form</a>).</td></tr>
+    <tr><td><code>flag provided but not defined: -zz</code></td>
+        <td>Unknown option (the message is in English, unlike scrap's other messages, because it comes from the programming language). Right after it
+        the help with the correct options appears.</td></tr>
+    <tr><td><code>invalid value "x" for flag -s: parse error</code></td>
+        <td>An option that expects a number received something else (this message is in English too).</td></tr>
+  </tbody>
+</table>
+
+<h3 id="errori-download">An address will not download</h3>
+<p>These messages concern a single address: the others carry on. At the end the summary starts with
+<code>✗</code> and the exit status is 1.</p>
+<table>
+  <thead><tr><th>Message</th><th>What it means and what to do</th></tr></thead>
+  <tbody>
+    <tr><td><code>scrap: URL non valido: …</code></td><td>It is not a web address: it must start with <code>http://</code> or <code>https://</code>.</td></tr>
+    <tr><td><code>HTTP 404</code>, <code>HTTP 410</code></td><td>The file is not there (any more). It happens often when copying a site: they are broken links of the site itself.</td></tr>
+    <tr><td><code>HTTP 401</code>, <code>HTTP 403</code></td><td>Access denied: credentials are needed (see <a href="#accesso">Sites with restricted access</a>) or the site rejects automated programs; sometimes <code>-U</code> with the name of a browser helps.</td></tr>
+    <tr><td><code>HTTP 429</code>, <code>HTTP 503</code></td><td>The site is overloaded or is asking you to slow down. scrap retries on its own after waiting; if it happens often use fewer files at once (<code>-j 2</code>) and <code>--rate</code>.</td></tr>
+    <tr><td><code>nessun dato ricevuto per 1m0s</code></td><td>The server stalled halfway (no data received for one minute). scrap retries on its own; if it runs out of attempts, run it again with <code>-c</code>.</td></tr>
+    <tr><td><code>download incompleto: 734003200/1288490188 byte</code></td><td>The server closed the connection before the end on every attempt. Run it again with <code>-c</code>.</td></tr>
+    <tr><td><code>il server ha ignorato la richiesta di un pezzo del file</code></td><td>The server stopped accepting downloads in pieces (it ignored the request for a piece of the file). Run it again with <code>-s 1</code>.</td></tr>
+    <tr><td><code>… x509: certificate signed by unknown authority</code>, <code>… certificate has expired</code></td>
+        <td>The site's security certificate is not valid. If you are sure of the site, <code>--insecure</code> skips the
+        check (for all the sites in that command).</td></tr>
+    <tr><td><code>… no such host</code>, <code>… connection refused</code>, <code>… i/o timeout</code></td>
+        <td>The site cannot be reached: no connection, wrong name, site out of service.</td></tr>
+    <tr><td><code>no space left on device</code></td><td>The disk is full. Free up some space and run it again with <code>-c</code>.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="altri-problemi">Other situations</h3>
+<dl class="defs">
+  <dt id="p-niente" data-kind="voce" data-index="downloads nothing">The site copy downloads almost nothing</dt>
+  <dd>Run it again with <code>-v</code> and look at the reason. The most common causes: <code>robots.txt</code> forbids the site; the site
+      builds its pages with JavaScript; the links lead to another address (for example from <code>esempio.it</code> to
+      <code>esempio.com</code>: add it with <code>--domains</code>); an <code>--accept-re</code> filter also blocks
+      the pages.</dd>
+  <dt id="p-zero" data-kind="voce" data-index="already present;0 file">The summary says «0 file» but the files are there</dt>
+  <dd>The files were already complete from a previous run and were skipped: the summary counts them as
+      <code>già presenti</code> (already present).</dd>
+  <dt id="p-lento" data-kind="voce" data-index="slow download">Downloads are slow</dt>
+  <dd>Check that you have not given <code>--rate</code>. Try more connections per file (<code>-s 8</code>) and more files
+      at once (<code>-j</code>).</dd>
+  <dt id="p-barre" data-kind="voce" data-index="bars not visible">I don't see the bars, only lines of text</dt>
+  <dd>It happens when the output does not go to a terminal (for example if you send it to a file): it is intentional. At most 6 bars
+      are visible at once; the other files in progress are summarized in <code>…e altri N in corso</code> (…and N more in progress).</dd>
+  <dt id="p-script" data-kind="voce" data-index="script;exit status">I use it in a script</dt>
+  <dd>Check the <a href="#stati-uscita">exit status</a>: 0 if everything went well, 1 if at least one address
+      failed, 2 for a wrong option. <code>-qa</code> removes all messages.</dd>
+</dl>
+
+<!-- ===================================================================== -->
+<h2 id="recupero">Recovery on a new device</h2>
+
+<p class="chapter-intro">If the tablet or the computer breaks down: how to get everything back on its feet from scratch.</p>
+
+<h3 id="cosa-c-e" data-index="backup;recovery">What is saved and where</h3>
+<table>
+  <thead><tr><th>What</th><th>Where</th><th>How to recover it</th></tr></thead>
+  <tbody>
+    <tr><td>Code, tests, manuals, tools, the whole history of changes</td>
+        <td>Public repository <a href="https://github.com/nic-fio/SCRAPER">github.com/nic-fio/SCRAPER</a></td>
+        <td><code>git clone</code></td></tr>
+    <tr><td>Ready-to-use program (Linux, Intel/AMD)</td><td>In the repository, file <code>scrap</code></td>
+        <td><code>git clone</code></td></tr>
+    <tr><td>Ready-made program for the other systems</td><td><a href="https://github.com/nic-fio/SCRAPER/releases/latest">Releases</a></td>
+        <td>Download it from the browser</td></tr>
+    <tr><td>These manuals</td><td><a href="https://nic-fio.github.io/SCRAPER/">nic-fio.github.io/SCRAPER</a> and
+        <code>docs/</code> in the repository</td><td>Online, or by opening the files in the browser</td></tr>
+    <tr><td>Cookie files, lists of addresses, downloaded files</td><td><strong>Nowhere online</strong></td>
+        <td>They are yours: keep a copy if you need them</td></tr>
+  </tbody>
+</table>
+
+<h3 id="ripartire">Starting again from scratch</h3>
+<ol class="steps">
+  <li><strong>Download the project</strong>:
+    <pre class="terminal">$ git clone https://github.com/nic-fio/SCRAPER.git
+$ cd SCRAPER</pre></li>
+  <li><strong>Try the program</strong>: <code>./scrap --help</code>. Done: the program is already in the repository.</li>
+  <li><strong>If you like</strong>, make it available everywhere: <code>sudo install -m 0755 scrap /usr/local/bin/scrap</code>.</li>
+</ol>
+<p>If you also want to be able to modify and rebuild scrap, prepare the machine (it installs Go and the rest, asks for
+<code>sudo</code>) and check that everything works:</p>
+<pre class="terminal">$ tools/setup-dev.sh --install
+$ make
+$ make test</pre>
+
+<h3 id="backup-locale" data-index="backup.sh;bundle">A backup that does not depend on GitHub</h3>
+<p><code>tools/backup.sh</code> saves the entire project, with its whole history, in a single file that can be restored even
+without a network:</p>
+<pre class="terminal">$ tools/backup.sh /media/chiavetta
+$ git clone /media/chiavetta/scrap-2026-09-24.bundle SCRAPER</pre>
+
+<!-- ===================================================================== -->
+<h2 id="riferimento">Option reference</h2>
+
+<p class="chapter-intro">All the options, with the value used if you do not specify them. They can be written with one or two
+dashes: <code>-mirror</code> and <code>--mirror</code> are the same thing. Options must be written
+<strong>before</strong> the addresses.</p>
+
+<h3 id="ref-download">Download</h3>
+<dl class="defs">
+  <dt id="opt-s" data-kind="opzione" data-index="-s;--split">-s, --split N</dt>
+  <dd>Connections (pieces) for each file. Default: 4. See <a href="#connessioni">Connections per file</a>.</dd>
+  <dt id="opt-j" data-kind="opzione" data-index="-j;--jobs">-j, --jobs N</dt>
+  <dd>Files (and pages) worked on at the same time. Default: 4.</dd>
+  <dt id="opt-min-split" data-kind="opzione" data-index="--min-split">--min-split SIZE</dt>
+  <dd>Below this size a file is downloaded over a single connection. Default: <code>1M</code>.</dd>
+  <dt id="opt-o" data-kind="opzione" data-index="-o;--output">-o, --output FILE</dt>
+  <dd>Name (and path) of the file to save. Only with one address and without <code>-r</code>/<code>-m</code>.</dd>
+  <dt id="opt-d" data-kind="opzione" data-index="-d;--dir">-d, --dir DIR</dt>
+  <dd>Folder to save into (created if it does not exist). Default: the current folder.</dd>
+  <dt id="opt-c" data-kind="opzione" data-index="-c;--continue">-c, --continue</dt>
+  <dd>Resumes files left half-finished (<code>.part</code>). Complete files are always skipped. See
+      <a href="#ripresa">Interruptions and resuming</a>.</dd>
+  <dt id="opt-retries" data-kind="opzione" data-index="--retries">--retries N</dt>
+  <dd>New attempts after the first, for each file or piece. Default: 5. Permanent refusals (401, 403, 404…) are not
+      retried.</dd>
+  <dt id="opt-retry-wait" data-kind="opzione" data-index="--retry-wait">--retry-wait SEC</dt>
+  <dd>Wait before the first new attempt; then it doubles at every attempt, up to 60 seconds. Default: 2.</dd>
+  <dt id="opt-rate" data-kind="opzione" data-index="--rate">--rate SIZE</dt>
+  <dd>Overall bandwidth limit, per second, for example <code>2M</code>. Default: <code>0</code>, no limit.</dd>
+  <dt id="opt-timeout" data-kind="opzione" data-index="--timeout">--timeout SEC</dt>
+  <dd>Maximum wait when the server does not respond or stops sending data. It does not limit the duration of a download.
+      Default: 60; <code>0</code> removes the limit.</dd>
+</dl>
+
+<h3 id="ref-crawl">Copying sites</h3>
+<dl class="defs">
+  <dt id="opt-r" data-kind="opzione" data-index="-r;--recursive">-r, --recursive</dt>
+  <dd>Follows the links in the pages and rebuilds the site's folders.</dd>
+  <dt id="opt-l" data-kind="opzione" data-index="-l;--level">-l, --level N</dt>
+  <dd>Maximum depth: how many steps of links from the starting page. <code>inf</code> = no limit. Default: 5.</dd>
+  <dt id="opt-m" data-kind="opzione" data-index="-m;--mirror">-m, --mirror</dt>
+  <dd>Full copy: like <code>-r -l inf</code>.</dd>
+  <dt id="opt-no-parent" data-kind="opzione" data-index="--no-parent">--no-parent</dt>
+  <dd>Does not go above the folder of the starting address (the first one, if there are several).</dd>
+  <dt id="opt-span-hosts" data-kind="opzione" data-index="--span-hosts">--span-hosts</dt>
+  <dd>Also follows links to other sites. To be used with a filter.</dd>
+  <dt id="opt-page-requisites" data-kind="opzione" data-index="--page-requisites">--page-requisites</dt>
+  <dd>Always downloads the resources of the pages (images, styles, scripts), even at the last level. Without
+      <code>-r</code>: a single complete page. See <a href="#requisiti-pagina">Complete pages</a>.</dd>
+  <dt id="opt-convert-links" data-kind="opzione" data-index="--convert-links">--convert-links</dt>
+  <dd>At the end rewrites the links in the saved pages to point to the files on disk, for browsing without a network.</dd>
+  <dt id="opt-robots" data-kind="opzione" data-index="--robots=false">--robots=false</dt>
+  <dd>Ignores <code>robots.txt</code>. Default: the site's rules are respected.</dd>
+</dl>
+
+<h3 id="ref-filtri">Filters</h3>
+<dl class="defs">
+  <dt id="opt-A" data-kind="opzione" data-index="-A;--accept">-A, --accept LISTA</dt>
+  <dd>Extensions to keep, separated by commas: <code>jpg,png,pdf</code>.</dd>
+  <dt id="opt-R" data-kind="opzione" data-index="-R;--reject">-R, --reject LISTA</dt>
+  <dd>Extensions to discard.</dd>
+  <dt id="opt-accept-re" data-kind="opzione" data-index="--accept-re">--accept-re REGEX</dt>
+  <dd>Only the addresses that match the regular expression (pages included).</dd>
+  <dt id="opt-reject-re" data-kind="opzione" data-index="--reject-re">--reject-re REGEX</dt>
+  <dd>Discards the addresses that match the regular expression.</dd>
+  <dt id="opt-domains" data-kind="opzione" data-index="--domains">--domains LISTA</dt>
+  <dd>Only these sites (and their subdomains). Replaces the default limit to the starting site.</dd>
+  <dt id="opt-exclude-domains" data-kind="opzione" data-index="--exclude-domains">--exclude-domains LISTA</dt>
+  <dd>Never these sites.</dd>
+  <dt id="opt-min-size" data-kind="opzione" data-index="--min-size">--min-size SIZE</dt>
+  <dd>Skips smaller files.</dd>
+  <dt id="opt-max-size" data-kind="opzione" data-index="--max-size">--max-size SIZE</dt>
+  <dd>Skips larger files.</dd>
+  <dt id="opt-types" data-kind="opzione" data-index="--types">--types LISTA</dt>
+  <dd>Content types to keep, for example <code>image/*,application/pdf</code>.</dd>
+  <dt id="opt-max-files" data-kind="opzione" data-index="--max-files">--max-files N</dt>
+  <dd>Stops after saving N files. Default: 0, no limit.</dd>
+  <dt id="opt-quota" data-kind="opzione" data-index="--quota">--quota SIZE</dt>
+  <dd>Stops after downloading SIZE in total. Default: 0, no limit.</dd>
+</dl>
+
+<h3 id="ref-auth">Access and cookies</h3>
+<dl class="defs">
+  <dt id="opt-user" data-kind="opzione" data-index="--user">--user UTENTE</dt>
+  <dd>Username for the server's access control (Basic or Digest).</dd>
+  <dt id="opt-password" data-kind="opzione" data-index="--password">--password PASS</dt>
+  <dd>Password for the server's access control.</dd>
+  <dt id="opt-auth" data-kind="opzione" data-index="--auth">--auth MODO</dt>
+  <dd><code>auto</code> (default) or <code>basic</code>: sends the username and password straight away, and switches to Digest if the server
+      asks for it. <code>digest</code>: sends them only when the server asks for them the Digest way.</dd>
+  <dt id="opt-login-url" data-kind="opzione" data-index="--login-url">--login-url URL</dt>
+  <dd>Address to which the login form is submitted before starting.</dd>
+  <dt id="opt-login-data" data-kind="opzione" data-index="--login-data">--login-data DATI</dt>
+  <dd>Fields of the login form: <code>utente=mario&amp;password=segreta</code>.</dd>
+  <dt id="opt-bearer" data-kind="opzione" data-index="--bearer">--bearer TOKEN</dt>
+  <dd>Access token, sent as <code>Authorization: Bearer TOKEN</code>.</dd>
+  <dt id="opt-H" data-kind="opzione" data-index="-H;--header">-H, --header 'Nome: valore'</dt>
+  <dd>Additional header for every request; it can be repeated.</dd>
+  <dt id="opt-cookie" data-kind="opzione" data-index="--cookie">--cookie 'k=v; …'</dt>
+  <dd>Hand-written cookies, sent with every request.</dd>
+  <dt id="opt-load-cookies" data-kind="opzione" data-index="--load-cookies">--load-cookies FILE</dt>
+  <dd>Loads the cookies from a <code>cookies.txt</code> file (Netscape format, the one browsers use).</dd>
+  <dt id="opt-save-cookies" data-kind="opzione" data-index="--save-cookies">--save-cookies FILE</dt>
+  <dd>At the end saves the cookies to a <code>cookies.txt</code> file.</dd>
+</dl>
+
+<h3 id="ref-generali">General</h3>
+<dl class="defs">
+  <dt id="opt-U" data-kind="opzione" data-index="-U;--user-agent">-U, --user-agent UA</dt>
+  <dd>How scrap presents itself to sites. Default: <code>scrap/1.1 (+https://github.com/nic-fio/SCRAPER)</code>, an honest
+      and recognizable name. Change it only if a site rejects programs.</dd>
+  <dt id="opt-referer" data-kind="opzione" data-index="--referer">--referer URL</dt>
+  <dd>The page you say you are coming from; some sites check it before handing over a file.</dd>
+  <dt id="opt-insecure" data-kind="opzione" data-index="--insecure">--insecure</dt>
+  <dd>Does not check the security certificates of <code>https</code> sites. It removes a protection: use it only if you know
+      why.</dd>
+  <dt id="opt-qe" data-kind="opzione" data-index="-qe">-qe</dt>
+  <dd>Shows only the errors.</dd>
+  <dt id="opt-qa" data-kind="opzione" data-index="-qa">-qa</dt>
+  <dd>Shows nothing, errors included. The exit status remains the real one. Only an option unknown to the
+      program is reported anyway.</dd>
+  <dt id="opt-v" data-kind="opzione" data-index="-v;--verbose">-v, --verbose</dt>
+  <dd>Explains every choice: files skipped and why, new attempts, login.</dd>
+  <dt id="opt-i" data-kind="opzione" data-index="-i;--input-file">-i, --input-file FILE</dt>
+  <dd>Reads the addresses from a file, one per line. See <a href="#lista">Downloading a list</a>.</dd>
+</dl>
+
+<h3 id="file-usati" data-index="file">Files used</h3>
+<table>
+  <thead><tr><th>File</th><th>What</th></tr></thead>
+  <tbody>
+    <tr><td><code>NOME.part</code></td><td>File being downloaded: it takes its final name when it is complete.</td></tr>
+    <tr><td><code>NOME.part.scrap</code></td><td>Resume notes for multi-connection downloads (how much each piece
+        has downloaded); they disappear when the download is finished.</td></tr>
+    <tr><td><code>cookies.txt</code></td><td>Cookies read by <code>--load-cookies</code> and written by
+        <code>--save-cookies</code> (you choose the name). They are as good as a password.</td></tr>
+    <tr><td>list of addresses</td><td>The file given to <code>-i</code>: one address per line, <code>#</code> for comments.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="ambiente" data-index="environment variables;NO_COLOR;PAGER;HTTP_PROXY">Environment variables</h3>
+<table>
+  <thead><tr><th>Variable</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>NO_COLOR</code></td><td>If set, no colors.</td></tr>
+    <tr><td><code>PAGER</code></td><td>The program used to scroll through the text help (default: <code>less</code>).</td></tr>
+    <tr><td><code>HTTP_PROXY</code>, <code>HTTPS_PROXY</code>, <code>NO_PROXY</code></td><td>Proxy to use for
+        <code>http</code> and <code>https</code> sites, and exceptions.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="stati-uscita" data-index="exit status;exit code">Exit statuses</h3>
+<table>
+  <thead><tr><th>Status</th><th>When</th></tr></thead>
+  <tbody>
+    <tr><td><code>0</code></td><td>Everything downloaded. Files already present, which are skipped, count as successful; so do files
+        excluded by the filters or by <code>robots.txt</code>.</td></tr>
+    <tr><td><code>1</code></td><td>At least one address was not downloaded (the summary says how many), or the form
+        login failed, or the cookies could not be saved.</td></tr>
+    <tr><td><code>2</code></td><td>Unknown option or option with a wrong value.</td></tr>
+  </tbody>
+</table>
+
+<!-- ===================================================================== -->
+<h2 id="glossario" class="unnumbered">Glossary</h2>
+<dl class="defs">
+  <dt id="g-crawl" data-kind="termine" data-index="crawl;site copy">Crawl, site copy</dt>
+  <dd>Visiting a site by following the links from one page to the next, as a person would, but automatically.</dd>
+  <dt id="g-profondita" data-kind="termine" data-index="depth (term)">Depth</dt>
+  <dd>How many links you have to follow from the starting page to reach a page.</dd>
+  <dt id="g-segmento" data-kind="termine" data-index="segment;piece">Piece (segment)</dt>
+  <dd>A part of a file downloaded over its own connection, together with the others.</dd>
+  <dt id="g-estensione" data-kind="termine" data-index="extension">Extension</dt>
+  <dd>The final part of a file name after the dot: <code>jpg</code>, <code>pdf</code>, <code>zip</code>.</dd>
+  <dt id="g-regex" data-kind="termine" data-index="regular expression (term);regex">Regular expression</dt>
+  <dd>A compact way of describing text: <code>a|b</code> means &laquo;a or b&raquo;, <code>$</code> the
+      end, <code>.</code> any character.</dd>
+  <dt id="g-cookie" data-kind="termine" data-index="cookie (term)">Cookie</dt>
+  <dd>A small piece of data that the site leaves in the browser to recognize it on later visits, for example after logging in.</dd>
+  <dt id="g-robots" data-kind="termine" data-index="robots.txt (term)">robots.txt</dt>
+  <dd>A site's file with the rules for automated programs: which parts not to visit.</dd>
+  <dt id="g-cert" data-kind="termine" data-index="certificate">Certificate</dt>
+  <dd>The digital document with which an <code>https</code> site proves its identity.</dd>
+  <dt id="g-release" data-kind="termine" data-index="release (term)">Release</dt>
+  <dd>A published version of the program, with the files ready to download.</dd>
+</dl>
+
+<!-- ===================================================================== -->
+<h2 id="index" class="unnumbered">Index</h2>
+<div id="index-list"></div>
+
+<footer class="doc-footer">
+  scrap — User Manual, for version 1.1. See also the <a href="Technical%20Manual.html">technical manual</a> and
+  <a href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisioni-e-storia.md">the project's decisions and history</a>.
+  <br>Copyright (c) 2026 nic-fio. All rights reserved.
+</footer>
+
+</main>
+</div>
+<script src="assets/vendor/mermaid.min.js"></script>
+<script src="assets/docs.js"></script>
+</body>
+</html>

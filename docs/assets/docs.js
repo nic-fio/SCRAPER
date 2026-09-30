@@ -52,7 +52,7 @@
   });
   main.querySelectorAll("h2, h3, h4").forEach(function (h) {
     if (!h.id) h.id = uniqueId(slug(h.textContent));
-    var a = el("a", { "class": "anchor", href: "#" + h.id, "aria-label": "Link a questa sezione" }, "#");
+    var a = el("a", { "class": "anchor", href: "#" + h.id, "aria-label": "Link to this section" }, "#");
     h.appendChild(a);
   });
 
@@ -169,10 +169,10 @@
     var wrap = el("div", { "class": "codewrap" + (pre.classList.contains("terminal") ? " terminal-wrap" : "") });
     pre.parentNode.insertBefore(wrap, pre);
     var label = pre.getAttribute("data-title") ||
-      { go: "Go", terminal: "Terminale", shell: "Shell", make: "Make", text: "", conf: "File" }[lang];
+      { go: "Go", terminal: "Terminal", shell: "Shell", make: "Make", text: "", conf: "File" }[lang];
     if (label) wrap.appendChild(el("span", { "class": "label" }, label));
     wrap.appendChild(pre);
-    var btn = el("button", { "class": "btn copy", type: "button" }, "Copia");
+    var btn = el("button", { "class": "btn copy", type: "button" }, "Copy");
     btn.addEventListener("click", function () {
       var text = src;
       if (lang === "terminal") /* copia solo i comandi */
@@ -180,7 +180,7 @@
           var m = /^\$ (.*)$/.exec(l);
           return m ? m[1] : null;
         }).filter(function (l) { return l !== null; }).join("\n") || src;
-      function done() { btn.textContent = "Copiato"; setTimeout(function () { btn.textContent = "Copia"; }, 1400); }
+      function done() { btn.textContent = "Copied"; setTimeout(function () { btn.textContent = "Copy"; }, 1400); }
       if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, function () {});
       else {
         var ta = el("textarea");
@@ -203,6 +203,9 @@
   });
 
   /* ---- search and index data ---- */
+
+  /* etichette mostrate per i tipi di voce (i tipi restano quelli dell'HTML) */
+  var KIND_LABEL = { capitolo: "chapter", sezione: "section", opzione: "option", voce: "entry", termine: "term", file: "file", funzione: "function" };
 
   var entries = [];
   heads.forEach(function (h) {
@@ -257,13 +260,13 @@
       if (seen[key] || shown.length >= 40) return;
       seen[key] = true;
       var a = el("a", { href: x.e.href });
-      a.appendChild(el("span", { "class": "kind" }, x.e.kind));
+      a.appendChild(el("span", { "class": "kind" }, KIND_LABEL[x.e.kind] || x.e.kind));
       a.appendChild(document.createTextNode(x.e.text));
       a.addEventListener("click", function () { closeSearch(); closeNav(); });
       results.appendChild(a);
       shown.push(a);
     });
-    if (!shown.length) results.appendChild(el("div", { "class": "empty" }, "Nessun risultato"));
+    if (!shown.length) results.appendChild(el("div", { "class": "empty" }, "No results"));
     results.classList.add("open");
   }
   function closeSearch() { if (results) results.classList.remove("open"); }
@@ -326,7 +329,7 @@
           if (e.kind === "opzione" || e.kind === "file" || e.kind === "funzione") a.className = "mono";
           li.appendChild(a);
           var w = where(e.href);
-          li.appendChild(el("span", { "class": "where" }, "  " + (e.kind === "sezione" || e.kind === "voce" ? "" : e.kind + " ") + (w ? "§" + w : "")));
+          li.appendChild(el("span", { "class": "where" }, "  " + (e.kind === "sezione" || e.kind === "voce" ? "" : (KIND_LABEL[e.kind] || e.kind) + " ") + (w ? "§" + w : "")));
           ul.appendChild(li);
         });
       g.appendChild(ul);
@@ -345,7 +348,7 @@
   });
   if (tocBox) tocBox.addEventListener("click", function (ev) { if (ev.target.closest("a")) closeNav(); });
 
-  var bt = el("button", { "class": "btn backtop", type: "button", "aria-label": "Torna all'inizio" }, "↑ Inizio");
+  var bt = el("button", { "class": "btn backtop", type: "button", "aria-label": "Back to top" }, "↑ Top");
   bt.addEventListener("click", function () { window.scrollTo({ top: 0, behavior: "smooth" }); });
   document.body.appendChild(bt);
 

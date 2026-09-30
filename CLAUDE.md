@@ -9,9 +9,16 @@ dal repository.
 
 - **Si parla con l'utente in italiano, sempre.** L'utente non capisce
   l'inglese: niente frasi di passaggio in inglese, nemmeno brevi. Anche
-  codice, commenti, messaggi del programma e documentazione sono in italiano.
+  codice, commenti, messaggi del programma, guida integrata (`help.go`) e
+  documenti Markdown sono in italiano.
+- **Unica eccezione: i due manuali HTML sono in inglese**
+  (`docs/User Manual.html`, `docs/Technical Manual.html`, `lang="en"`).
+  Nei manuali restano come sono comandi, opzioni, percorsi e l'output del
+  programma citato (che è in italiano); `check-docs.py` controlla
+  `lang="en"` e `<b>Version</b>`.
 - **Testi per l'utente senza gergo da programmatori** (preferenza esplicita):
-  help, messaggi e manuale utente sono "copy di prodotto", non note tecniche.
+  help, messaggi e manuale utente sono "copy di prodotto", non note tecniche
+  (in inglese semplice, per il manuale utente).
 - **Verificare, non dichiarare.** Ogni affermazione sul comportamento viene da
   un'esecuzione: i test, un download reale, un server locale. "Dovrebbe
   funzionare" non è un risultato.
@@ -32,7 +39,7 @@ Il perché di ciascuna è in [docs/decisioni-e-storia.md](docs/decisioni-e-stori
 | **L'eseguibile sta nel repository** | `./scrap` (Linux x86-64, statico) è registrato, così un `git clone` basta anche senza Go. `make` lo rigenera. |
 | **Nessuna licenza** | Copyright nic-fio, tutti i diritti riservati; il codice è pubblico per poterlo leggere e recuperare. La PolyForm della 1.0 non si applica più. |
 | **Mai dati personali nel repository** | Niente email personale (i commit usano l'indirizzo noreply), niente file di cookie. |
-| **Manuali in italiano, tema chiaro** | Stesso impianto di NG-EFI_SHELL e hoster (HTML in `docs/`, GitHub Pages). |
+| **Manuali in inglese, tema chiaro** | `docs/User Manual.html` e `docs/Technical Manual.html`; stesso impianto di NG-EFI_SHELL e hoster (HTML in `docs/`, GitHub Pages). Programma, guida integrata e il resto restano in italiano. |
 
 ## Il repository
 
@@ -40,7 +47,7 @@ Il perché di ciascuna è in [docs/decisioni-e-storia.md](docs/decisioni-e-stori
 |---|---|
 | `*.go` | Il programma (`package main`): vedi la mappa dei file nel manuale tecnico. |
 | `*_test.go` | 32 test senza rete; `main_test.go` prova il programma intero in un sottoprocesso. |
-| `docs/` | `manuale-utente.html`, `manuale-tecnico.html`, `decisioni-e-storia.md`, `assets/`. Pubblicati con GitHub Pages. |
+| `docs/` | `User Manual.html`, `Technical Manual.html` (in inglese; nei link `%20` al posto dello spazio), `decisioni-e-storia.md`, `assets/`. Pubblicati con GitHub Pages. |
 | `tools/` | `setup-dev.sh` (pacchetti e identità git), `backup.sh` (bundle git), `check-docs.py` (controlli dei manuali). |
 | `cacerts.pem` | Certificati radice incorporati; aggiornare con `curl -fsSL -o cacerts.pem https://curl.se/ca/cacert.pem`. |
 | `scrap` | L'eseguibile Linux x86-64, **registrato**: va rigenerato con `make` e registrato insieme a ogni modifica del codice. |

@@ -1,7 +1,7 @@
 # scrap — decisioni e storia
 
 > Perché scrap è fatto così: il contesto, le decisioni e la storia del progetto.
-> Il funzionamento in dettaglio è nel [manuale tecnico](https://nic-fio.github.io/SCRAPER/manuale-tecnico.html).
+> Il funzionamento in dettaglio è nel [manuale tecnico](https://nic-fio.github.io/SCRAPER/Technical%20Manual.html).
 > Ricavato dal diario di sviluppo di giugno 2026 (solo le parti tecniche) e
 > aggiornato con la migrazione di settembre 2026.
 

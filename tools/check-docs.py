@@ -12,16 +12,20 @@ Fallisce se:
     x86-64 o non contiene la versione di main.go;
   - la versione di main.go non coincide con quella di README.md,
     docs/index.html e dei due manuali;
-  - un link interno #ancora dei manuali punta a un id inesistente.
+  - un manuale non dichiara lang="en" (i manuali sono in inglese);
+  - un link interno #ancora dei manuali punta a un id inesistente, o un link
+    a una pagina locale (manuali e docs/index.html) punta a un file che non
+    esiste in docs/.
 """
 import pathlib
 import re
 import sys
+import urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
-USER = DOCS / "manuale-utente.html"
-TECH = DOCS / "manuale-tecnico.html"
+USER = DOCS / "User Manual.html"
+TECH = DOCS / "Technical Manual.html"
 
 errors = []
 
@@ -85,15 +89,20 @@ version = m.group(1) if m else None
 if not version:
     err('main.go: costante appVersion non trovata')
 else:
+    v = re.escape(version)
+    # i manuali sono in inglese: frontespizio e piè di pagina
+    manual = [rf"<b>Version</b> {v}\b", rf"for version {v}\b"]
     checks = {
-        "README.md": rf"Versione {re.escape(version)}\b",
-        "docs/index.html": rf"<b>Versione</b> {re.escape(version)}\b",
-        "docs/manuale-utente.html": rf"<b>Versione</b> {re.escape(version)}\b",
-        "docs/manuale-tecnico.html": rf"<b>Versione</b> {re.escape(version)}\b",
+        "README.md": [rf"Versione {v}\b"],
+        "docs/index.html": [rf"<b>Versione</b> {v}\b"],
+        "docs/User Manual.html": manual,
+        "docs/Technical Manual.html": manual,
     }
-    for rel, pat in checks.items():
-        if not re.search(pat, (ROOT / rel).read_text()):
-            err(f"{rel}: la versione non è {version} (come in main.go)")
+    for rel, pats in checks.items():
+        text = (ROOT / rel).read_text()
+        for pat in pats:
+            if not re.search(pat, text):
+                err(f"{rel}: la versione non è {version} (come in main.go)")
 
 # ---- eseguibile registrato ----
 exe = ROOT / "scrap"
@@ -107,6 +116,20 @@ else:
     elif version and ("scrap/" + version + " (+").encode() not in data:
         err(f"./scrap non contiene la versione {version}: rigeneralo con 'make'")
 
+# ---- lingua dei manuali ----
+for path, text in ((USER, user), (TECH, tech)):
+    if '<html lang="en">' not in text:
+        err(f'{path.name}: manca <html lang="en"> (i manuali sono in inglese)')
+
+# ---- link a pagine locali (i nomi dei manuali contengono spazi: %20) ----
+INDEX = DOCS / "index.html"
+for path, text in ((USER, user), (TECH, tech), (INDEX, INDEX.read_text())):
+    for href in sorted(set(re.findall(r'href="([^"#]+)(?:#[^"]*)?"', text))):
+        if re.match(r"[a-z][a-z0-9+.-]*:", href, re.I):
+            continue  # http:, https:, mailto: ...
+        if not (DOCS / urllib.parse.unquote(href)).exists():
+            err(f"{path.name}: link a {href}, che non esiste in docs/")
+
 # ---- ancore interne ----
 for path, text in ((USER, user), (TECH, tech)):
     ids = set(re.findall(r'\bid="([^"]+)"', text))
@@ -115,7 +138,8 @@ for path, text in ((USER, user), (TECH, tech)):
             err(f"{path.name}: link a #{anchor}, che non esiste")
     other = TECH if path == USER else USER
     other_ids = set(re.findall(r'\bid="([^"]+)"', other.read_text()))
-    for anchor in sorted(set(re.findall(r'href="' + other.name + r'#([^"]+)"', text))):
+    other_href = re.escape(urllib.parse.quote(other.name))
+    for anchor in sorted(set(re.findall(r'href="' + other_href + r'#([^"]+)"', text))):
         if anchor not in other_ids:
             err(f"{path.name}: link a {other.name}#{anchor}, che non esiste")
 

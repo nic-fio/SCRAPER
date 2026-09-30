@@ -33,13 +33,13 @@ $ scrap -s 8 https://esempio.it/debian.iso
 
 | Documento | Per |
 |---|---|
-| [Manuale utente](https://nic-fio.github.io/SCRAPER/manuale-utente.html) | Installare e usare scrap: scaricare, copiare siti, filtri, accesso riservato, problemi e soluzioni, tutte le opzioni. |
-| [Manuale tecnico](https://nic-fio.github.io/SCRAPER/manuale-tecnico.html) | Come è fatto dentro: architettura, motore di download, crawler, filtri, test, limiti noti. |
+| [Manuale utente](https://nic-fio.github.io/SCRAPER/User%20Manual.html) | Installare e usare scrap: scaricare, copiare siti, filtri, accesso riservato, problemi e soluzioni, tutte le opzioni. |
+| [Manuale tecnico](https://nic-fio.github.io/SCRAPER/Technical%20Manual.html) | Come è fatto dentro: architettura, motore di download, crawler, filtri, test, limiti noti. |
 | [Decisioni e storia](docs/decisioni-e-storia.md) | Perché scrap è fatto così. |
 
-I manuali sono pagine HTML, che GitHub mostra come codice sorgente: leggili
+I manuali, in inglese, sono pagine HTML che GitHub mostra come codice sorgente: leggili
 online su **https://nic-fio.github.io/SCRAPER/**, oppure apri
-`docs/manuale-utente.html` nel browser da un clone (funzionano anche senza rete).
+`docs/User Manual.html` nel browser da un clone (funzionano anche senza rete).
 
 ## Installazione
 
