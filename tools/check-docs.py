@@ -90,11 +90,11 @@ if not version:
     err('main.go: costante appVersion non trovata')
 else:
     v = re.escape(version)
-    # i manuali sono in inglese: frontespizio e piè di pagina
-    manual = [rf"<b>Version</b> {v}\b", rf"for version {v}\b"]
+    # i manuali sono in inglese: copertina e piè di pagina dello stile comune
+    manual = [rf"<span>Version</span><b>{v}</b>", r'<footer class="doc-foot">[^<]* · Version ' + v + r" · "]
     checks = {
         "README.md": [rf"Versione {v}\b"],
-        "docs/index.html": [rf"<b>Versione</b> {v}\b"],
+        "docs/index.html": [rf"<span>Versione</span><b>{v}</b>"],
         "docs/User Manual.html": manual,
         "docs/Technical Manual.html": manual,
     }
@@ -124,6 +124,8 @@ for path, text in ((USER, user), (TECH, tech)):
 # ---- link a pagine locali (i nomi dei manuali contengono spazi: %20) ----
 INDEX = DOCS / "index.html"
 for path, text in ((USER, user), (TECH, tech), (INDEX, INDEX.read_text())):
+    # lo script comune dei manuali compone i link a pezzi: non sono link veri
+    text = re.sub(r"<script\b.*?</script>", "", text, flags=re.S)
     for href in sorted(set(re.findall(r'href="([^"#]+)(?:#[^"]*)?"', text))):
         if re.match(r"[a-z][a-z0-9+.-]*:", href, re.I):
             continue  # http:, https:, mailto: ...

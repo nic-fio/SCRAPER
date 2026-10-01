@@ -12,8 +12,9 @@ salvate in un repository. I manuali (in inglese) si leggono in uno di questi due
 | Pagina iniziale | https://nic-fio.github.io/SCRAPER/ |
 
 **Senza rete**: clona il repository e apri `docs/User Manual.html` nel
-browser. Tutto quello che serve alle pagine (stile, script, diagrammi) è in
-`docs/assets`, quindi funzionano anche offline.
+browser. Ogni manuale è un unico file con stile e script incorporati; i
+diagrammi usano la copia locale di Mermaid in `docs/assets/vendor`, quindi
+funzionano anche offline.
 
 [Decisioni e storia](decisions-and-history.md) è in Markdown, quindi GitHub lo
 mostra già formattato.
@@ -28,7 +29,7 @@ Dentro il programma, `scrap --help` mostra la guida integrata a schede.
 | `User Manual.html` | Installare e usare scrap; riferimento di tutte le opzioni. |
 | `Technical Manual.html` | Architettura, funzionamento interno, test, convenzioni, limiti noti. |
 | `decisions-and-history.md` | Perché scrap è fatto così. |
-| `assets/` | Foglio di stile, script e una copia locale di Mermaid (MIT). |
+| `assets/vendor/` | Copia locale di Mermaid (MIT), per i diagrammi dei manuali. |
 
 `tools/check-docs.py` (eseguito da `make test`) verifica che i manuali siano
 allineati al codice.

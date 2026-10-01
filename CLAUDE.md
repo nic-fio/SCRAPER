@@ -15,7 +15,7 @@ dal repository.
   (`docs/User Manual.html`, `docs/Technical Manual.html`, `lang="en"`).
   Nei manuali restano come sono comandi, opzioni, percorsi e l'output del
   programma citato (che è in italiano); `check-docs.py` controlla
-  `lang="en"` e `<b>Version</b>`.
+  `lang="en"` e la versione in copertina e nel piè di pagina.
 - **Testi per l'utente senza gergo da programmatori** (preferenza esplicita):
   help, messaggi e manuale utente sono "copy di prodotto", non note tecniche
   (in inglese semplice, per il manuale utente).
@@ -39,7 +39,7 @@ Il perché di ciascuna è in [docs/decisions-and-history.md](docs/decisions-and-
 | **L'eseguibile sta nel repository** | `./scrap` (Linux x86-64, statico) è registrato, così un `git clone` basta anche senza Go. `make` lo rigenera. |
 | **Nessuna licenza** | Copyright nic-fio, tutti i diritti riservati; il codice è pubblico per poterlo leggere e recuperare. La PolyForm della 1.0 non si applica più. |
 | **Mai dati personali nel repository** | Niente email personale (i commit usano l'indirizzo noreply), niente file di cookie. |
-| **Manuali in inglese, tema chiaro** | `docs/User Manual.html` e `docs/Technical Manual.html`; stesso impianto di NG-EFI_SHELL e hoster (HTML in `docs/`, GitHub Pages). Programma, guida integrata e il resto restano in italiano. |
+| **Manuali in inglese, stile comune** | `docs/User Manual.html` e `docs/Technical Manual.html`, nello **stile comune dei manuali dei sette progetti** (AMS, EFI_PARTITION_MANAGER, HOSTER, MTERM, NESH, PHONESTRA, SCRAPER): ogni manuale è un unico file HTML autosufficiente, con lo stile e lo script comuni (`manual.css`, `manual.js`) incorporati e identici byte per byte in tutti i progetti; copertina con logo, «User Manual» o «Technical Manual», versione e data; barra laterale con ricerca e indice; capitoli e sezioni numerati, tabelle e figure numerate con didascalia, indice analitico; piè di pagina `scrap · User Manual · Version X · Mese AAAA · © 2026 Nicola Fiorillo`; solo tema chiaro; GitHub Pages. Lo stile non si cambia in un solo progetto (aggiunte solo in un blocco finale `/* Solo per scrap: … */`, se indispensabili). Unica risorsa esterna al file: Mermaid per i diagrammi, dalla copia locale `docs/assets/vendor/`. Programma, guida integrata e il resto restano in italiano. |
 
 ## Il repository
 
@@ -47,9 +47,9 @@ Il perché di ciascuna è in [docs/decisions-and-history.md](docs/decisions-and-
 |---|---|
 | `*.go` | Il programma (`package main`): vedi la mappa dei file nel manuale tecnico. |
 | `*_test.go` | 32 test senza rete; `main_test.go` prova il programma intero in un sottoprocesso. |
-| `docs/` | `User Manual.html`, `Technical Manual.html` (in inglese; nei link `%20` al posto dello spazio), `index.html`, `decisions-and-history.md`, `assets/`. Pubblicati con GitHub Pages. |
+| `docs/` | `User Manual.html`, `Technical Manual.html` (in inglese; nei link `%20` al posto dello spazio), `index.html`, `decisions-and-history.md`, `assets/vendor/` (Mermaid, per i diagrammi). Pubblicati con GitHub Pages. |
 | `tools/` | `setup-dev.sh` (pacchetti e identità git), `backup.sh` (bundle git), `check-docs.py` (controlli dei manuali). |
-| `logos/` | `scraper-logo.png`, il logo (PNG 2172×724, sfondo bianco). Non è usato nei manuali. |
+| `logos/` | `scraper-logo.png`, il logo (PNG 2172×724, sfondo bianco). Non si modifica: la copertina dei manuali ne incorpora una copia trasparente, ritagliata e ridotta. |
 | `cacerts.pem` | Certificati radice incorporati; aggiornare con `curl -fsSL -o cacerts.pem https://curl.se/ca/cacert.pem`. |
 | `scrap` | L'eseguibile Linux x86-64, **registrato**: va rigenerato con `make` e registrato insieme a ogni modifica del codice. |
 | `dist/` | Binari per le release, mai registrati. |

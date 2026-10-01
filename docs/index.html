@@ -1,43 +1,70 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>scrap — Documentazione</title>
 <meta name="description" content="Documentazione di scrap, il coltellino svizzero del download: manuale utente, manuale tecnico, decisioni e storia.">
-<link rel="stylesheet" href="assets/docs.css">
 <style>
-  .home { max-width: 58rem; margin: 0 auto; padding: 3rem clamp(1rem, 4vw, 3rem) 4rem; }
-  .home .cards { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
-  .home .card { display: block; color: var(--text); text-decoration: none; }
-  .home .card:hover { border-color: var(--accent); text-decoration: none; }
-  .home .card h4 { color: var(--accent); }
-  .home pre { overflow-x: auto; }
+*{box-sizing:border-box}
+body{margin:0;background:#e9edf2;color:#111827;font-family:Outfit,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:15px;line-height:1.62}
+.doc{max-width:1100px;margin:0 auto;background:#fff;box-shadow:0 1px 30px rgba(15,23,42,.10);min-height:100vh;display:flex;flex-direction:column}
+a{color:#0050C0;text-decoration:none}
+.cover{position:relative;padding:56px 56px 52px;background:linear-gradient(135deg,#0050C0 0%,#003a90 100%);color:#fff;overflow:hidden}
+.cover-name{position:relative;z-index:2;display:inline-block;font-size:30px;font-weight:800;letter-spacing:-.01em;border-bottom:3px solid #9dc0ff;padding-bottom:2px;margin-bottom:34px}
+.cover-kicker{position:relative;z-index:2;text-transform:uppercase;letter-spacing:.24em;font-size:12px;font-weight:700;color:#9dc0ff;margin-bottom:14px}
+.cover-title{position:relative;z-index:2;font-size:48px;line-height:1.05;margin:0 0 12px;font-weight:800;letter-spacing:-.02em}
+.cover-sub{position:relative;z-index:2;font-size:18px;color:#cfe0ff;max-width:36em;margin-bottom:36px}
+.cover-meta{position:relative;z-index:2;display:flex;flex-wrap:wrap;gap:36px}
+.cover-meta div{display:flex;flex-direction:column}
+.cover-meta span{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#9dc0ff}
+.cover-meta b{font-size:16px;color:#fff}
+.cover-swoosh{position:absolute;right:-90px;bottom:-140px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,#3b82f655,transparent 70%);z-index:1}
+.main{flex:1;padding:44px 56px}
+.h-sec{font-size:21px;font-weight:700;color:#003a90;margin:0 0 18px;padding-left:12px;border-left:4px solid #3b82f6}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:18px}
+.card{display:block;border:1px solid #e5e7eb;border-top:4px solid #0050C0;border-radius:8px;padding:18px 20px;color:#334155;background:#f8fafc;transition:border-color .15s,box-shadow .15s}
+.card:hover{border-color:#3b82f6;box-shadow:0 4px 18px rgba(0,80,192,.12)}
+.card .icon{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:700;color:#0050C0;font-size:18px;margin-bottom:6px}
+.card h3{margin:0 0 6px;color:#003a90;font-size:18px}
+.card p{margin:0;font-size:14px}
+.doc-foot{padding:18px 56px;border-top:1px solid #e5e7eb;color:#64748b;font-size:12.5px;background:#f8fafc}
+@media (max-width:640px){
+  .cover{padding:36px 16px}.cover-title{font-size:34px}.main{padding:28px 16px}.doc-foot{padding:16px}
+}
 </style>
 </head>
 <body>
-<div class="home">
-  <header class="titlepage">
-    <div class="kicker">Documentazione</div>
-    <h1>scrap</h1>
-    <p class="lead">Il coltellino svizzero del download: un unico eseguibile che scarica file a più connessioni con
-    ripresa, copia siti interi seguendo i link e sceglie con tanti filtri cosa tenere.</p>
-    <div class="meta"><span><b>Versione</b> 1.1</span><span><b>Sistema</b> Linux x86-64 e ARM64</span></div>
-  </header>
+<div class="doc">
+  <section class="cover">
+    <div class="cover-name">scrap</div>
+    <div class="cover-kicker">Documentazione</div>
+    <h1 class="cover-title">Documentazione di scrap</h1>
+    <div class="cover-sub">Il coltellino svizzero del download: un unico eseguibile che scarica file a più connessioni con
+    ripresa, copia siti interi seguendo i link e sceglie con tanti filtri cosa tenere.</div>
+    <div class="cover-meta">
+      <div><span>Versione</span><b>1.1</b></div>
+      <div><span>Sistema</span><b>Linux x86-64 e ARM64</b></div>
+    </div>
+    <div class="cover-swoosh"></div>
+  </section>
 
-  <div class="cards">
-    <a class="card" href="User%20Manual.html"><div class="icon">&gt;_</div><h4>Manuale utente</h4>
-      <p>Installare e usare scrap: scaricare file, copiare siti, filtri, siti con accesso riservato, problemi e
-      soluzioni, recupero dopo un guasto, tutte le opzioni.</p></a>
-    <a class="card" href="Technical%20Manual.html"><div class="icon">{ }</div><h4>Manuale tecnico</h4>
-      <p>Architettura, motore di download multi-segmento, crawler, filtri, HTTP e cookie, test, limiti noti.</p></a>
-    <a class="card" href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisions-and-history.md"><div class="icon">&#8801;</div><h4>Decisioni e storia</h4>
-      <p>Perché scrap è fatto così: le scelte di progetto e la storia.</p></a>
-    <a class="card" href="https://github.com/nic-fio/SCRAPER"><div class="icon">&lt;/&gt;</div><h4>Codice sorgente</h4>
-      <p>Il repository su GitHub, con le release del programma pronto.</p></a>
-  </div>
+  <main class="main">
+    <h2 class="h-sec">Documenti</h2>
+    <div class="cards">
+      <a class="card" href="User%20Manual.html"><div class="icon">&gt;_</div><h3>Manuale utente</h3>
+        <p>Installare e usare scrap: scaricare file, copiare siti, filtri, siti con accesso riservato, problemi e
+        soluzioni, recupero dopo un guasto, tutte le opzioni.</p></a>
+      <a class="card" href="Technical%20Manual.html"><div class="icon">{ }</div><h3>Manuale tecnico</h3>
+        <p>Architettura, motore di download multi-segmento, crawler, filtri, HTTP e cookie, test, limiti noti.</p></a>
+      <a class="card" href="https://github.com/nic-fio/SCRAPER/blob/main/docs/decisions-and-history.md"><div class="icon">&#8801;</div><h3>Decisioni e storia</h3>
+        <p>Perché scrap è fatto così: le scelte di progetto e la storia.</p></a>
+      <a class="card" href="https://github.com/nic-fio/SCRAPER"><div class="icon">&lt;/&gt;</div><h3>Codice sorgente</h3>
+        <p>Il repository su GitHub, con le release del programma pronto.</p></a>
+    </div>
+  </main>
 
-  <footer class="doc-footer">Copyright (c) 2026 nic-fio. Tutti i diritti riservati.</footer>
+  <footer class="doc-foot">Copyright (c) 2026 nic-fio. Tutti i diritti riservati.</footer>
 </div>
 </body>
 </html>
