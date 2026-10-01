@@ -12,7 +12,7 @@ Fallisce se:
     x86-64 o non contiene la versione di main.go;
   - la versione di main.go non coincide con quella di README.md,
     docs/index.html e dei due manuali;
-  - un manuale non dichiara lang="en" (i manuali sono in inglese);
+  - un manuale o docs/index.html non dichiara lang="en" (sono in inglese);
   - un link interno #ancora dei manuali punta a un id inesistente, o un link
     a una pagina locale (manuali e docs/index.html) punta a un file che non
     esiste in docs/.
@@ -90,11 +90,11 @@ if not version:
     err('main.go: costante appVersion non trovata')
 else:
     v = re.escape(version)
-    # i manuali sono in inglese: copertina e piè di pagina dello stile comune
+    # manuali e pagina iniziale sono in inglese: copertina e piè di pagina dello stile comune
     manual = [rf"<span>Version</span><b>{v}</b>", r'<footer class="doc-foot">[^<]* · Version ' + v + r" · "]
     checks = {
         "README.md": [rf"Versione {v}\b"],
-        "docs/index.html": [rf"<span>Versione</span><b>{v}</b>"],
+        "docs/index.html": manual,
         "docs/User Manual.html": manual,
         "docs/Technical Manual.html": manual,
     }
@@ -116,10 +116,10 @@ else:
     elif version and ("scrap/" + version + " (+").encode() not in data:
         err(f"./scrap non contiene la versione {version}: rigeneralo con 'make'")
 
-# ---- lingua dei manuali ----
-for path, text in ((USER, user), (TECH, tech)):
+# ---- lingua dei manuali e della pagina iniziale ----
+for path, text in ((USER, user), (TECH, tech), (DOCS / "index.html", (DOCS / "index.html").read_text())):
     if '<html lang="en">' not in text:
-        err(f'{path.name}: manca <html lang="en"> (i manuali sono in inglese)')
+        err(f'{path.name}: manca <html lang="en"> (manuali e pagina iniziale sono in inglese)')
 
 # ---- link a pagine locali (i nomi dei manuali contengono spazi: %20) ----
 INDEX = DOCS / "index.html"

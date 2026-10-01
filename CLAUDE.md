@@ -11,8 +11,8 @@ dal repository.
   l'inglese: niente frasi di passaggio in inglese, nemmeno brevi. Anche
   codice, commenti, messaggi del programma, guida integrata (`help.go`) e
   documenti Markdown sono in italiano.
-- **Unica eccezione: i due manuali HTML sono in inglese**
-  (`docs/User Manual.html`, `docs/Technical Manual.html`, `lang="en"`).
+- **Unica eccezione: i manuali e la pagina `docs/index.html` sono in inglese**
+  (`docs/User Manual.html`, `docs/Technical Manual.html`, `docs/index.html`, `lang="en"`).
   Nei manuali restano come sono comandi, opzioni, percorsi e l'output del
   programma citato (che è in italiano); `check-docs.py` controlla
   `lang="en"` e la versione in copertina e nel piè di pagina.
