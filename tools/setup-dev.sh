@@ -68,6 +68,8 @@ if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
     else
         echo "  già impostata: $(git -C "$ROOT" config --local --get user.name) <$(git -C "$ROOT" config --local --get user.email)>"
     fi
+    git -C "$ROOT" config --local core.hooksPath .githooks
+    echo "  gancio pre-commit attivo: controlla i manuali prima di ogni commit"
 else
     echo "  non è una copia git, saltata"
 fi

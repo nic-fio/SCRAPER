@@ -1,0 +1,9 @@
+#!/bin/sh
+# Prima di ogni commit controlla che i manuali corrispondano ai sorgenti, come
+# fa la CI: un manuale non allineato la faceva fallire su GitHub, con un'email
+# d'errore a ogni push. Lo attiva tools/setup-dev.sh (core.hooksPath).
+# Saltarlo una volta: git commit --no-verify
+make -s docs-check && exit 0
+echo >&2
+echo "commit fermato: i manuali non corrispondono ai sorgenti; allinea i manuali e riprova" >&2
+exit 1
